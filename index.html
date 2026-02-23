@@ -1,0 +1,3630 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<title>Wonkey bisines - Wave Edition</title>
+<style>
+  :root{
+    --bg:#111; --panel:#141414; --panel2:#1b1b1b; --line:#333; --txt:#fff;
+    --good:#22c55e; --warn:#fbbf24; --bad:#ef4444; --blue:#60a5fa;
+    --muted:#a3a3a3;
+  }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--txt); }
+  #wrap { display:flex; flex-direction:column; height:100vh; }
+
+  /* HUD */
+  #hud { display:flex; flex-wrap:wrap; gap:10px 14px; padding:10px 12px; align-items:center; background:var(--panel2); }
+  .bar { width:160px; height:10px; background:#333; border-radius:999px; overflow:hidden; }
+  .bar > i { display:block; height:100%; width:50%; background:#6ee7b7; }
+  .hpBox{display:flex; flex-direction:column; gap:2px;}
+  .hpTop{font-size:12px; color:var(--muted); line-height:1;}
+  .hpTop #hpnum{font-weight:800; color:var(--txt);}
+  #hud .mini { font-size:12px; color:var(--muted); }
+  #hud .comboHot{ color:var(--warn); font-weight:900; }
+  /* Combo tiers */
+  #comboTier.comboTier0{ color:var(--muted); }
+  #comboTier.comboTier1{ color:#fef3c7; }
+  #comboTier.comboTier2{ color:#fde68a; }
+  #comboTier.comboTier3{ color:#fb923c; }
+  #comboTier.comboTier4{ color:#f87171; }
+  #comboTier.comboTier5{ color:#c084fc; }
+  @keyframes comboPop{ 0%{ transform:scale(1); } 35%{ transform:scale(1.35); } 100%{ transform:scale(1); } }
+  #comboTier.comboPop{ animation: comboPop 180ms ease-out; }
+
+  #game { flex:1; position:relative; overflow:hidden; background: radial-gradient(circle at 30% 20%, #222, #0b0b0b); }
+  #fx { position:absolute; inset:0; width:100%; height:100%; }
+
+  .player { position:absolute; left:50%; top:55%; transform:translate(-50%,-50%);
+    width:22px; height:22px; border-radius:50%;
+    background:var(--blue); box-shadow:0 0 18px rgba(96,165,250,.6); z-index:5;
+  }
+
+  .enemy {
+    position:absolute; padding:6px 10px; border-radius:999px;
+    background:var(--bad); color:#fff; font-weight:900; white-space:nowrap;
+    user-select:none; z-index:3;
+  }
+  .enemy.tank { background:#b91c1c; }
+  .enemy.fast { background:#f97316; }
+  .enemy.tele { background:#a855f7; }
+  .enemy.split { background:#ef4444; }
+  .enemy.child { background:#ef4444; outline:2px solid rgba(255,255,255,.18); }
+  .enemy.lock { outline:3px solid var(--warn); }
+
+  /* === Enemy readability upgrade: shape + icon === */
+  .enemy{
+    border:2px solid rgba(255,255,255,.14);
+    box-shadow:0 8px 16px rgba(0,0,0,.35), 0 0 14px rgba(239,68,68,.25);
+    letter-spacing:.2px;
+  }
+  .enemy.normal{ border-radius:999px; }
+  .enemy.tank{
+    border-radius:12px;
+    border-width:3px;
+    box-shadow:0 10px 18px rgba(0,0,0,.4), 0 0 16px rgba(185,28,28,.35);
+  }
+  .enemy.fast{
+    border-radius:999px;
+    transform:translateZ(0) skewX(-8deg);
+    box-shadow:0 10px 18px rgba(0,0,0,.4), 0 0 16px rgba(249,115,22,.35);
+  }
+  .enemy.tele{
+    border-radius:999px;
+    border-style:dashed;
+    border-color:rgba(168,85,247,.55);
+    box-shadow:0 10px 18px rgba(0,0,0,.4), 0 0 18px rgba(168,85,247,.45);
+  }
+  .enemy.split{
+    border-radius:999px;
+    box-shadow:0 10px 18px rgba(0,0,0,.4),
+               0 0 0 2px rgba(255,255,255,.10) inset,
+               0 0 18px rgba(239,68,68,.35);
+  }
+  .enemy.child{
+    border-radius:10px;
+  }
+  .enemy.normal::before{ content:"● "; opacity:.9; }
+  .enemy.tank::before  { content:"■ "; opacity:.9; }
+  .enemy.fast::before  { content:"▶ "; opacity:.9; }
+  .enemy.tele::before  { content:"◇ "; opacity:.9; }
+  .enemy.split::before { content:"✂ "; opacity:.9; }
+  .enemy.child::before { content:""; }
+
+  /* Parry orb */
+  .parryOrb{
+    position:absolute; width:18px; height:18px; border-radius:50%;
+    background:rgba(251,191,36,.95);
+    box-shadow:0 0 18px rgba(251,191,36,.65);
+    z-index:4;
+  }
+
+  /* Boss UI */
+  #bossPanel{
+    position:absolute; left:50%; top:10px; transform:translateX(-50%);
+    width:min(860px, 94vw);
+    background:rgba(20,20,20,.86);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 12px;
+    display:none;
+    z-index:40;
+    box-shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+  #bossTitle{ font-weight:900; font-size:14px; opacity:.95; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+  #bossSentence{ margin-top:6px; font-size:16px; line-height:1.35; }
+  #bossHpWrap{ margin-top:8px; display:flex; gap:8px; align-items:center; }
+  #bossHpBar{ flex:1; height:10px; background:#333; border-radius:999px; overflow:hidden; }
+  #bossHpBar > i{ display:block; height:100%; width:100%; background:var(--bad); }
+  #bossHint{ font-size:12px; color:var(--muted); }
+
+  .bossBody{
+    position:absolute;
+    padding:14px 16px;
+    border-radius:16px;
+    background:rgba(239,68,68,.94);
+    color:#fff;
+    font-weight:1000;
+    white-space:nowrap;
+    z-index:6;
+    box-shadow:0 0 24px rgba(239,68,68,.55);
+    user-select:none;
+  }
+
+  #bottom { padding:10px 12px; background:var(--panel2); display:flex; gap:10px; align-items:center; }
+  #in { flex:1; font-size:18px; padding:10px 12px; border-radius:10px; border:1px solid #444; background:#0f0f0f; color:#fff; }
+  #msg { opacity:.92; font-size:13px; line-height:1.25; }
+
+  /* PowerUp UI */
+  #upgradeOverlay { position:absolute; inset:0; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; z-index:60; }
+  #panel { width:min(820px, 94vw); background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.5); }
+  #panel h2 { margin:0 0 10px; font-size:18px; }
+  .choices { display:grid; grid-template-columns:1fr; gap:10px; }
+  @media (min-width: 760px){ .choices{ grid-template-columns:repeat(3,1fr);} }
+  .choice { border:1px solid var(--line); border-radius:14px; padding:12px; background:#0f0f0f; cursor:pointer; user-select:none; }
+  .choice:hover { outline:3px solid rgba(34,197,94,.6); }
+  .choice b { display:block; font-size:16px; margin-bottom:6px; }
+  .choice p { margin:0; opacity:.88; font-size:13px; line-height:1.35; }
+  .tag { display:inline-block; font-size:12px; opacity:.9; padding:2px 8px; border:1px solid var(--line); border-radius:999px; margin-left:6px; }
+  .rar { margin-left:6px; font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); opacity:.9; }
+  .rar.common{ color:#e5e5e5; }
+  .rar.rare{ color:#60a5fa; }
+  .rar.epic{ color:#f472b6; }
+
+  /* Title Screen */
+  #titleOverlay{
+    position:absolute; inset:0; z-index:80;
+    display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(circle at 30% 20%, #222, #0b0b0b);
+  }
+  #titleCard{
+    width:min(760px, 92vw);
+    background:rgba(20,20,20,.92);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:18px;
+    box-shadow:0 10px 40px rgba(0,0,0,.55);
+  }
+  #titleCard h1{ margin:0 0 8px; font-size:34px; letter-spacing:.5px; }
+  #titleCard .sub{ margin:0 0 14px; opacity:.85; font-size:14px; line-height:1.35; }
+  #titleButtons{ display:flex; gap:10px; flex-wrap:wrap; }
+  .bigBtn{
+    padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+    background:#0f0f0f; color:#fff; font-weight:900; cursor:pointer;
+    min-width: 170px;
+  }
+  .bigBtn.primary{ background:var(--good); color:#071; border:0; }
+  .note{
+    margin-top:14px; font-size:13px; opacity:.85; line-height:1.45;
+    border-top:1px dashed #333; padding-top:12px;
+  }
+  .hintRow{ margin-top:10px; font-size:12px; color:var(--muted); line-height:1.35; }
+
+  /* Result + Ranking */
+  .modalOverlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.72); z-index:90;
+  }
+  .modalCard{
+    width:min(820px, 92vw);
+    background:rgba(20,20,20,.95);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.6);
+  }
+  .modalCard h2{ margin:0 0 10px; font-size:20px; }
+  .modalRow{ display:flex; gap:10px; flex-wrap:wrap; margin:10px 0; }
+  .pill{ border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:13px; background:#0f0f0f; }
+  .list{
+    margin-top:10px; border-top:1px solid #2a2a2a;
+  }
+  .listItem{
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+    padding:10px 6px; border-bottom:1px solid #2a2a2a;
+    font-size:13px;
+  }
+  .listItem .left{ display:flex; flex-direction:column; gap:2px; }
+  .listItem .small{ font-size:12px; color:var(--muted); }
+  .btnRow{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* Wrong Mark */
+  #wrongMark{
+    position:absolute;
+    left:50%;
+    top:55%;
+    transform:translate(-50%,-50%);
+    font-size:96px;
+    font-weight:1000;
+    color:#ef4444;
+    opacity:0;
+    pointer-events:none;
+    z-index:70;
+    text-shadow:0 0 18px rgba(239,68,68,.6);
+  }
+  #wrongMark.show{ opacity:1; }
+
+  /* Wave Toast */
+  #toast{
+    position:absolute; left:50%; top:52%;
+    transform:translate(-50%,-50%);
+    background:rgba(0,0,0,.65);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 14px;
+    font-weight:900;
+    display:none;
+    z-index:65;
+    box-shadow:0 10px 30px rgba(0,0,0,.45);
+    text-align:center;
+  }
+  #toast .small{ font-size:12px; font-weight:700; color:var(--muted); margin-top:4px; }
+
+/* Audio controls (Title) */
+.audioRow{
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(0,0,0,.35);
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 12px;
+  align-items:center;
+  justify-content:center;
+}
+.audioRow label{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  font-size:13px;
+  color:var(--txt);
+  user-select:none;
+}
+.audioRow input[type="range"]{
+  width:140px;
+}
+.audioRow .miniNote{
+  width:100%;
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+}
+
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="hud">
+<div class="hpBox"><div class="hpTop">HP <span id="hpnum">0/0</span></div><div class="bar"><i id="hpbar"></i></div></div>
+<div>LV <span id="lv">1</span></div>
+<div>XP <span id="xp">0</span>/<span id="need">10</span></div>
+<div>Score <span id="score">0</span></div>
+<div>Wave <span id="wave">1</span>/<span id="waveTotal">15</span> <span class="mini" id="phaseLabel"></span></div>
+<div>Mode <span id="modeLabel">easy</span></div>
+<div>Luck <span id="luck">1</span></div>
+<div>Bomb <span id="bombs">0</span></div>
+<div>Combo <span id="combo">0</span> <span class="mini" id="comboTier">x0</span></div>
+</div>
+<div id="game">
+<canvas id="fx"></canvas>
+<div class="player" id="player"></div>
+<div id="bossPanel">
+<div id="bossTitle">
+<span>👑 BOSS WAVE <span id="bossWaveNum">5</span></span>
+<span id="bossHint">文章を見て、動詞だけ入力（Enter）</span>
+</div>
+<div id="bossSentence"></div>
+<div id="bossHpWrap">
+<div style="font-size:12px;color:var(--muted);min-width:64px;">BOSS HP</div>
+<div id="bossHpBar"><i id="bossHpFill"></i></div>
+<div id="bossHpText" style="font-size:12px;color:var(--muted);min-width:44px;text-align:right;">3/3</div>
+</div>
+</div>
+<div id="toast"><div id="toastMain">WAVE 1</div><div class="small" id="toastSub">開始！</div></div>
+<div id="wrongMark">×</div>
+<!-- Title Screen -->
+<div id="titleOverlay">
+<div id="titleCard">
+<h1>Wonkey bisines</h1>
+<p class="sub">中1ローマ字入力タイピング × ヴァンサバ風（過去形）<br/>Wave制（全15）/ ボス：5・10・15 / パリィ：Shift</p>
+<div id="titleButtons">
+<button class="bigBtn primary" id="btnStartEasy">スタート</button>
+<span id="hardBtnSlot"></span>
+<button class="bigBtn" id="btnShop">ショップ</button><button class="bigBtn" id="btnRanking">ランキング</button>
+</div>
+<div class="pill" style="margin:10px 0;" id="staminaInfo">スタミナ：-/-</div>
+<div class="mini" id="staminaNext"></div>
+
+<div class="pill" style="margin:10px 0;" id="assistInfo">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+    <label style="display:flex; align-items:center; gap:8px; font-weight:800;">
+      <input type="checkbox" id="assistSlowOn"/> ゆっくりモード（敵速度↓）
+    </label>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="mini">倍率</span>
+      <input type="range" id="assistSlowMul" min="60" max="90" step="10" value="80"/>
+      <span class="mini" id="assistSlowLabel">0.8x（獲得ptも0.8倍）</span>
+    </div>
+  </div>
+</div>
+
+
+<div class="note" id="unlockNote">
+          裏モード（hard）は、easyで <b>15waveクリア</b> すると解禁されます。
+        </div>
+<div class="hintRow">
+          操作：Enter=攻撃 / Shift=パリィ / Space=レーザー（取得後） / Esc=タイトルへ
+        </div>
+<div class="audioRow" id="audioRow">
+  <label><input type="checkbox" id="bgmOn"/>BGM</label>
+  <input type="range" id="bgmVol" min="0" max="100" value="30"/>
+  <label><input type="checkbox" id="seOn"/>SE</label>
+  <input type="range" id="seVol" min="0" max="100" value="45"/>
+  <div class="miniNote">※iPad/Safariの仕様で、最初の「スタート」を押した後に音が有効になります</div>
+</div>
+</div>
+</div>
+<!-- Level up overlay -->
+<div id="upgradeOverlay">
+<div id="panel">
+<h2>LEVEL UP! どれを選ぶ？</h2>
+<div class="choices" id="choices"></div>
+</div>
+</div>
+<!-- Result -->
+<div class="modalOverlay" id="resultOverlay">
+<div class="modalCard">
+<h2 id="resultTitle">RESULT</h2>
+<div class="modalRow">
+<div class="pill">Mode: <span id="rMode">easy</span></div>
+<div class="pill">Score: <span id="rScore">0</span></div>
+<div class="pill">Wave: <span id="rWave">1</span>/15</div>
+<div class="pill">Time: <span id="rTime">0</span>s</div>
+<div class="pill">Miss: <span id="rMiss">0</span></div>
+<div class="pill">Parry: <span id="rParry">0</span></div>
+<div class="pill">Earned: <span id="rPtsEarned">0</span> pt</div><div class="pill">Total: <span id="rPtsTotal">0</span> pt</div></div>
+<div class="btnRow">
+<button class="bigBtn primary" id="btnBackTitle">タイトルへ</button>
+<button class="bigBtn" id="btnResultRanking">ランキングを見る</button>
+</div>
+</div>
+</div>
+<!-- Ranking -->
+<div class="modalOverlay" id="rankOverlay">
+<div class="modalCard">
+<h2>ランキング（上位10）</h2>
+<div class="mini">総スコア順 / 日付 / モード / クリア状況</div>
+<div class="list" id="rankList"></div>
+<div class="btnRow">
+<button class="bigBtn primary" id="btnRankBack">戻る</button>
+<button class="bigBtn" id="btnRankClear">ランキング初期化</button>
+</div>
+</div>
+</div><div class="modalOverlay" id="shopOverlay">
+<div class="modalCard">
+<h2>ショップ（永続アップグレード）</h2>
+<div class="mini">ポイントを消費して永続強化します（localStorage保存）</div>
+<div class="pill" style="margin:10px 0;">所持ポイント：<span id="shopPoints">0</span> pt</div>
+<div class="list" id="shopList"></div>
+<div class="btnRow">
+<button class="bigBtn primary" id="btnShopBack">戻る</button>
+<button class="bigBtn" id="btnShopReset">初期化</button>
+</div>
+</div>
+</div>
+</div>
+<div id="bottom">
+<input autocapitalize="off" autocorrect="off" id="in" inputmode="text" placeholder="type then Enter" spellcheck="false"/>
+<div id="msg">Enterで確定 → 正解すると攻撃！</div>
+</div>
+</div>
+<script>
+(() => {
+  // =============================
+  // DOM
+  // =============================
+  const game = document.getElementById("game");
+  const fx = document.getElementById("fx");
+  const ctx = fx.getContext("2d");
+  const inp  = document.getElementById("in");
+
+  const hpbar = document.getElementById("hpbar");
+  const hpnum = document.getElementById("hpnum");
+  const lvEl = document.getElementById("lv");
+  const xpEl = document.getElementById("xp");
+  const needEl = document.getElementById("need");
+  const scoreEl = document.getElementById("score");
+  const waveEl = document.getElementById("wave");
+  const waveTotalEl = document.getElementById("waveTotal");
+  const phaseLabel = document.getElementById("phaseLabel");
+  const modeLabel = document.getElementById("modeLabel");
+  const luckEl = document.getElementById("luck");
+  const bombsEl = document.getElementById("bombs");
+  const comboEl = document.getElementById("combo");
+  const comboTierEl = document.getElementById("comboTier");
+
+  const titleOverlay = document.getElementById("titleOverlay");
+  const btnStartEasy = document.getElementById("btnStartEasy");
+  // 重要：起動安定化のため、最小限のボタンイベントを先に登録
+  if(btnStartEasy){ btnStartEasy.addEventListener("click", () => startGame("easy")); }
+  const hardBtnSlot = document.getElementById("hardBtnSlot");
+  const unlockNote = document.getElementById("unlockNote");
+  const btnRanking = document.getElementById("btnRanking");
+  const bgmOn = document.getElementById("bgmOn");
+  const bgmVol = document.getElementById("bgmVol");
+  const seOn = document.getElementById("seOn");
+  const seVol = document.getElementById("seVol");
+  const staminaInfoEl = document.getElementById("staminaInfo");
+  const staminaNextEl = document.getElementById("staminaNext");
+
+  const upgradeOverlay = document.getElementById("upgradeOverlay");
+  const choicesBox = document.getElementById("choices");
+
+  const wrongMark = document.getElementById("wrongMark");
+  const toast = document.getElementById("toast");
+  const toastMain = document.getElementById("toastMain");
+  const toastSub = document.getElementById("toastSub");
+
+  // Boss UI
+  const bossPanel = document.getElementById("bossPanel");
+  const bossWaveNum = document.getElementById("bossWaveNum");
+  const bossSentenceEl = document.getElementById("bossSentence");
+  const bossHpFill = document.getElementById("bossHpFill");
+  const bossHpText = document.getElementById("bossHpText");
+
+  // Result UI
+  const resultOverlay = document.getElementById("resultOverlay");
+  const resultTitle = document.getElementById("resultTitle");
+  const rMode = document.getElementById("rMode");
+  const rScore = document.getElementById("rScore");
+  const rWave = document.getElementById("rWave");
+  const rTime = document.getElementById("rTime");
+  const rMiss = document.getElementById("rMiss");
+  const rParry = document.getElementById("rParry");
+  const btnBackTitle = document.getElementById("btnBackTitle");
+  const btnResultRanking = document.getElementById("btnResultRanking");
+
+  // Ranking UI
+  const rankOverlay = document.getElementById("rankOverlay");
+  const shopOverlay = document.getElementById("shopOverlay");
+  const btnShop = document.getElementById("btnShop");
+  const btnShopBack = document.getElementById("btnShopBack");
+  const btnShopReset = document.getElementById("btnShopReset");
+  const shopPointsEl = document.getElementById("shopPoints");
+  const shopList = document.getElementById("shopList");
+  const rPtsEarned = document.getElementById("rPtsEarned");
+  const rPtsTotal = document.getElementById("rPtsTotal");
+  const rankList = document.getElementById("rankList");
+  const btnRankBack = document.getElementById("btnRankBack");
+  const btnRankClear = document.getElementById("btnRankClear");
+
+  const msg = document.getElementById("msg");
+
+  // Audio UI
+  const AUDIO_KEY = "wonkey_audio_v1";
+  try{ bindAudioUI(); }catch(e){ console.error(e); }
+
+
+  // Assist (slow mode) UI
+  const ASSIST_KEY = "wonkey_assist_v1";
+  function loadAssist(){
+    let a = {};
+    try{ a = JSON.parse(localStorage.getItem(ASSIST_KEY) || "{}") || {}; }catch(_){ a = {}; }
+    if(typeof a.on !== "boolean") a.on = false;
+    if(typeof a.mul !== "number") a.mul = 0.8;
+    // clamp
+    a.mul = Math.max(0.6, Math.min(0.9, Math.round(a.mul*10)/10));
+    return a;
+  }
+  function saveAssist(a){
+    try{ localStorage.setItem(ASSIST_KEY, JSON.stringify(a)); }catch(_){}
+  }
+  function bindAssistUI(){
+    const chk = document.getElementById("assistSlowOn");
+    const rng = document.getElementById("assistSlowMul");
+    const lab = document.getElementById("assistSlowLabel");
+    if(!chk || !rng || !lab) return;
+
+    const a = loadAssist();
+    chk.checked = !!a.on;
+    rng.value = String(Math.round((a.mul||0.8)*100));
+    function updateLabel(){
+      const mul = Math.round(Number(rng.value))/100;
+      lab.textContent = `${mul.toFixed(1)}x（獲得ptも${mul.toFixed(1)}倍）`;
+      rng.disabled = !chk.checked;
+    }
+    updateLabel();
+
+    chk.addEventListener("change", ()=>{
+      const cur = loadAssist();
+      cur.on = chk.checked;
+      saveAssist(cur);
+      updateLabel();
+    });
+    rng.addEventListener("input", ()=>{
+      const cur = loadAssist();
+      cur.mul = Math.round(Number(rng.value))/100;
+      saveAssist(cur);
+      updateLabel();
+    });
+  }
+
+  try{ bindAssistUI(); }catch(e){ console.error(e); }
+  // =============================
+  // Helpers
+  // =============================
+  function rect() { return game.getBoundingClientRect(); }
+  function normalize(s){ return (s||"").trim().toLowerCase(); }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function randi(a,b){ return Math.floor(rand(a,b+1)); }
+
+  // Wrong mark
+  let wrongTimer = null;
+  function showWrongMark(){
+    wrongMark.classList.add("show");
+    clearTimeout(wrongTimer);
+    wrongTimer = setTimeout(() => wrongMark.classList.remove("show"), 500);
+  }
+  // Toast
+  let toastTimer = null;
+  // =============================
+  // Crash guard (iPad "freeze" usually = JS error)
+  // =============================
+  const ERR_KEY = "wonkey_last_error";
+  let crashOverlay = null;
+  function showCrash(msgText){
+    try{
+      if(!crashOverlay){
+        crashOverlay = document.createElement("div");
+        crashOverlay.style.position = "absolute";
+        crashOverlay.style.left = "10px";
+        crashOverlay.style.right = "10px";
+        crashOverlay.style.bottom = "10px";
+        crashOverlay.style.zIndex = "9999";
+        crashOverlay.style.background = "rgba(0,0,0,.78)";
+        crashOverlay.style.border = "2px solid #ef4444";
+        crashOverlay.style.borderRadius = "14px";
+        crashOverlay.style.padding = "10px 12px";
+        crashOverlay.style.fontSize = "12px";
+        crashOverlay.style.lineHeight = "1.35";
+        crashOverlay.style.whiteSpace = "pre-wrap";
+        crashOverlay.style.pointerEvents = "auto";
+        crashOverlay.innerHTML = `<b style="color:#fecaca;">ERROR</b>\n<div id="crashText"></div>\n<button id="crashClose" style="margin-top:8px;">閉じる</button>`;
+        game.appendChild(crashOverlay);
+        crashOverlay.querySelector("#crashClose").onclick = ()=>{ try{ crashOverlay.remove(); }catch(_){} crashOverlay=null; };
+      }
+      const t = crashOverlay.querySelector("#crashText");
+      if(t) t.textContent = msgText;
+    }catch(_){}
+  }
+
+  window.addEventListener("error", (ev)=>{
+    try{
+      const msg = `[${new Date().toISOString()}]\n${ev.message || "Unknown error"}\n${(ev.filename||"")}:${ev.lineno||""}:${ev.colno||""}`;
+      sessionStorage.setItem(ERR_KEY, msg);
+      showCrash(msg);
+    }catch(_){}
+  });
+
+  window.addEventListener("unhandledrejection", (ev)=>{
+    try{
+      const reason = (ev && ev.reason) ? (ev.reason.stack || ev.reason.toString()) : "Unhandled rejection";
+      const msg = `[${new Date().toISOString()}]\n${reason}`;
+      sessionStorage.setItem(ERR_KEY, msg);
+      showCrash(msg);
+    }catch(_){}
+  });
+
+
+  function showToast(main, sub, ms=900){
+    toastMain.textContent = main;
+    toastSub.textContent = sub || "";
+    toast.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.style.display = "none", ms);
+  }
+
+  // Canvas resize
+  function resizeFX(){
+    const r = rect();
+    fx.width = Math.floor(r.width * devicePixelRatio);
+    fx.height = Math.floor(r.height * devicePixelRatio);
+    fx.style.width = r.width + "px";
+    fx.style.height = r.height + "px";
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+  window.addEventListener("resize", resizeFX);
+
+
+  // =============================
+  // Shop (Meta upgrades)
+  // =============================
+  const SHOP_ITEMS = [
+    {
+      id:"hpPlus",
+      name:"最大HP +1",
+      desc:(lv)=>`最大HPを +1（現在:+${lv} / MAX:+5）`,
+      max:5,
+      cost:(lv)=>[10,20,30,40,50][lv] ?? 999
+    },
+    {
+      id:"stamCapPlus",
+      name:"スタミナ上限 +1",
+      desc:(lv)=>{
+        const cap = 3 + lv;
+        return `スタミナ上限を +1（現在:${cap} / MAX:8）`;
+      },
+      max:5,
+      cost:(lv)=>[120,240,400,650,1000][lv] ?? 9999
+    },
+    {
+      id:"luckPlus",
+      name:"永続Luck +1",
+      desc:(lv)=>`Luckを +1（現在:+${lv} / MAX:+10）`,
+      max:10,
+      cost:(lv)=>15 + (lv*10)
+    },
+
+    {
+      id:"xpBoost",
+      name:"XP獲得 +5%",
+      desc:(lv)=>`XP獲得を +${(lv+1)*5}%（現在:+${lv*5}% / MAX:+25%）`,
+      max:5,
+      cost:(lv)=>20 + (lv*15)
+    },
+
+    {
+      id:"bombMax",
+      name:"ボム回数 +1（BB）",
+      desc:(lv)=>`入力欄に「BB」で全体1ダメ（1ゲームで${lv}回使用）`,
+      max:3,
+      cost:(lv)=>[100,500,1000][lv] ?? 999
+    },
+    {
+      id:"shopSavvy",
+      name:"買い物上手（割引）",
+      desc:(lv)=>{
+        const disc = shopDiscountRateFromLv(lv);
+        return lv<=0
+          ? "ショップ価格が割引（最大30%）"
+          : `ショップ価格を -${Math.round(disc*100)}%（現在:${lv}/10）`;
+      },
+      max:10,
+      cost:(lv)=>SHOP_SAVVY_COST[lv] ?? 999999
+    },
+    {
+      id:"resurrection",
+      name:"リザレクション（1回復活）",
+      desc:(lv)=> lv>=1 ? "取得済み（ゲーム中1回だけHP50%で復活）" : "ゲーム中1回だけHP50%で復活",
+      max:1,
+      cost:(lv)=>100
+    },
+    {
+      id:"unlockShout",
+      name:"SHOUT 解禁",
+      desc:()=>`レベルアップで「SHOUT」が出現（RARE）`,
+      max:1,
+      cost:()=>300
+    },
+    {
+      id:"unlockReroll",
+      name:"リロール 解禁",
+      desc:()=>`レベルアップで「リロール」が出現（RARE）`,
+      max:1,
+      cost:()=>700
+    },
+    {
+      id:"unlockFrozen",
+      name:"フローズン 解禁",
+      desc:()=>`入力「FR」で全体スロー/停止（RARE）`,
+      max:1,
+      cost:()=>500
+    },
+  ];
+
+  // 買い物上手：コストテーブル（10→1500、10回）
+  const SHOP_SAVVY_COST = [10,17,30,53,93,162,282,493,860,1500];
+
+  function shopDiscountRateFromLv(lv){
+    const n = clamp(lv||0, 0, 10);
+    if(n <= 0) return 0;
+    // 1回目5% → 10回目30%
+    return 0.05 + (n-1) * (0.25/9);
+  }
+
+  function shopDiscountRate(){
+    return shopDiscountRateFromLv(meta.shopSavvy || 0);
+  }
+
+  function applyShopDiscount(price, itemId){
+    const p = Math.max(0, Math.floor(price||0));
+    if(p <= 0) return 0;
+    // 自分自身の割引はかけない（無限割引っぽさ回避）
+    if(itemId === "shopSavvy") return p;
+    const rate = shopDiscountRate();
+    return Math.max(1, Math.floor(p * (1 - rate)));
+  }
+
+  function openShop(){
+    phase = "shop";
+    updateStaminaUI();
+    shopOverlay.style.display = "flex";
+    titleOverlay.style.display = "none";
+    resultOverlay.style.display = "none";
+    rankOverlay.style.display = "none";
+    renderShop();
+    inp.value = "";
+    inp.blur();
+  }
+
+  function renderShop(){
+    // 最新を読み直し（別タブ等の変更にも耐える）
+    meta = loadMeta();
+    shopPointsEl.textContent = meta.points;
+
+    shopList.innerHTML = "";
+    for(const it of SHOP_ITEMS){
+      const cur = meta[it.id] || 0;
+      const maxed = cur >= it.max;
+      const raw = it.cost(cur);
+      const price = applyShopDiscount(raw, it.id);
+
+      const row = document.createElement("div");
+      row.className = "listItem";
+      row.innerHTML = `
+        <div class="left">
+          <b>${it.name}</b>
+          <div class="small">${it.desc(cur)}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="pill">${maxed ? "MAX" : (price + "pt")}</div>
+          <button class="bigBtn ${maxed ? "" : "primary"}" style="min-width:auto;padding:8px 10px;" ${maxed ? "disabled" : ""}>購入</button>
+        </div>
+      `;
+      const btn = row.querySelector("button");
+      btn.addEventListener("click", ()=> buyShop(it.id));
+      shopList.appendChild(row);
+    }
+  }
+
+  function buyShop(id){
+    meta = loadMeta();
+    const it = SHOP_ITEMS.find(x=>x.id===id);
+    if(!it) return;
+    const cur = meta[id] || 0;
+    if(cur >= it.max){
+      playSE("bad");
+      return;
+    }
+    const raw = it.cost(cur);
+    const price = applyShopDiscount(raw, it.id);
+    if(meta.points < price){
+      showToast("不足", "ポイントが足りません", 700);
+      playSE("bad");
+      return;
+    }
+    meta.points -= price;
+    meta[id] = cur + 1;
+    saveMeta(meta);
+    // stamina cap changed -> clamp and refresh
+    if(id === "stamCapPlus"){
+      const s = loadStaminaState();
+      const cap = staminaCap();
+      s.cur = Math.floor(clamp(s.cur, 0, cap));
+      saveStaminaState(s);
+      updateStaminaUI();
+    }
+    playSE("ok");
+    renderShop();
+  }
+
+  function resetShopAll(){
+    if(!confirm("ショップ（永続データ）を初期化します。よろしいですか？")) return;
+    meta = { points:0, hpPlus:0, luckPlus:0, xpBoost:0, resurrection:0, bombMax:0, shopSavvy:0, stamCapPlus:0 };
+    saveMeta(meta);
+    renderShop();
+  }
+
+  // =============================
+// Audio (SE + BGM)
+// =============================
+let audioCtx = null;
+let masterGain = null;
+let seGain = null;
+let bgmGain = null;
+
+let bgmTimer = null;
+let bgmNextTime = 0;
+let bgmStep = 0;
+
+// 設定（localStorage）
+let audioOpt = {
+  seEnabled: true,
+  bgmEnabled: true,
+  seVol: 0.45,   // 0..1
+  bgmVol: 0.30   // 0..1
+};
+function loadAudioOpt(){
+  try{
+    const o = JSON.parse(localStorage.getItem(AUDIO_KEY) || "{}") || {};
+    audioOpt.seEnabled = (o.seEnabled !== false);
+    audioOpt.bgmEnabled = (o.bgmEnabled !== false);
+    if(typeof o.seVol === "number") audioOpt.seVol = clamp(o.seVol, 0, 1);
+    if(typeof o.bgmVol === "number") audioOpt.bgmVol = clamp(o.bgmVol, 0, 1);
+  }catch(_){}
+}
+function saveAudioOpt(){
+  try{ localStorage.setItem(AUDIO_KEY, JSON.stringify(audioOpt)); }catch(_){}
+}
+
+function ensureAudio(){
+  if(audioCtx) return;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    seGain = audioCtx.createGain();
+    bgmGain = audioCtx.createGain();
+
+    seGain.connect(masterGain);
+    bgmGain.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+
+    applyAudioGains();
+  }catch(e){
+    audioCtx = null;
+  }
+}
+
+function applyAudioGains(){
+  // WebAudio(SE) と <audio>(BGM) の両方に反映（安定優先）
+  const seV  = (audioOpt.seEnabled ? audioOpt.seVol : 0);
+  const bgmV = (audioOpt.bgmEnabled ? audioOpt.bgmVol : 0);
+
+  if(audioCtx && seGain){
+    // クリック音などが大きくならないよう上限を低めに
+    seGain.gain.value = seV;
+  }
+  // 旧BGMシンセ用の gain が残っていても 0 に固定（外部音源を使うため）
+  if(audioCtx && bgmGain){
+    bgmGain.gain.value = 0;
+  }
+
+  // 外部音源BGM（Audio要素）
+  if(window.__wonkeyBgmAudio){
+    window.__wonkeyBgmAudio.volume = clamp(bgmV, 0, 1);
+  }
+}
+
+function bindAudioUI(){
+  // 初回ロード
+  loadAudioOpt();
+
+  if(bgmOn){
+    bgmOn.checked = !!audioOpt.bgmEnabled;
+    bgmVol.value = Math.round(audioOpt.bgmVol * 100);
+    seOn.checked = !!audioOpt.seEnabled;
+    seVol.value = Math.round(audioOpt.seVol * 100);
+
+    const sync = () => {
+      audioOpt.bgmEnabled = !!bgmOn.checked;
+      audioOpt.seEnabled = !!seOn.checked;
+      audioOpt.bgmVol = clamp((+bgmVol.value || 0)/100, 0, 1);
+      audioOpt.seVol  = clamp((+seVol.value || 0)/100, 0, 1);
+      saveAudioOpt();
+      applyAudioGains();
+
+      // BGMを切ったら即停止
+      if(!audioOpt.bgmEnabled) stopBGM();
+      // SEの確認用（ユーザー操作中のみ）
+      if(audioOpt.seEnabled) playSE("ok");
+    };
+
+    bgmOn.addEventListener("change", sync);
+    seOn.addEventListener("change", sync);
+    bgmVol.addEventListener("input", () => {
+      audioOpt.bgmVol = clamp((+bgmVol.value || 0)/100, 0, 1);
+      saveAudioOpt();
+      applyAudioGains();
+    });
+    seVol.addEventListener("input", () => {
+      audioOpt.seVol = clamp((+seVol.value || 0)/100, 0, 1);
+      saveAudioOpt();
+      applyAudioGains();
+    });
+  }
+}
+
+function beep(freq=440, dur=0.07, type="sine", gain=0.08){
+  if(!audioCtx || !seGain) return;
+  if(!audioOpt.seEnabled || audioOpt.seVol <= 0) return;
+
+  const t0 = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t0);
+
+  // gain は seVol に対して相対
+  const gMax = Math.max(0.0001, gain);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gMax, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  o.connect(g).connect(seGain);
+  o.start(t0);
+  o.stop(t0 + dur + 0.02);
+}
+
+function playSE(kind){
+  switch(kind){
+    case "ok":    beep(740,0.06,"square",0.07); beep(980,0.05,"square",0.05); break;
+    case "bad":   beep(160,0.10,"sawtooth",0.08); break;
+    case "hit":   beep(520,0.05,"triangle",0.06); break;
+    case "lv":    beep(660,0.08,"sine",0.06); beep(880,0.08,"sine",0.06); break;
+    case "parry": beep(980,0.06,"triangle",0.07); beep(1240,0.05,"triangle",0.06); break;
+    case "boss":  beep(220,0.12,"sawtooth",0.08); break;
+    case "clear": beep(523,0.08,"sine",0.06); beep(659,0.08,"sine",0.06); beep(784,0.10,"sine",0.07); break;
+  }
+}
+
+// ---- BGM: 外部音源（m4a） ----
+// iOS/Safari は「ユーザー操作なし再生」が不可なので、Startボタン押下後に開始します。
+// 方式：<audio> を使用（安定優先）
+const BGM_FILE = "BGM1.m4a";
+
+// グローバルへ保持（applyAudioGainsからも参照）
+window.__wonkeyBgmAudio = null;
+let bgmUserUnlocked = false;
+
+function ensureBgmAudio(){
+  if(window.__wonkeyBgmAudio) return;
+  try{
+    const a = new Audio(BGM_FILE);
+    a.loop = true;
+    a.preload = "auto";
+    a.volume = clamp(audioOpt.bgmEnabled ? audioOpt.bgmVol : 0, 0, 1);
+    a.addEventListener("error", () => {
+      console.warn("[BGM] failed to load:", BGM_FILE);
+    });
+    window.__wonkeyBgmAudio = a;
+  }catch(e){
+    console.warn("[BGM] init error:", e);
+  }
+}
+
+function startBGM(){
+  // ONでも、ユーザー操作前は再生しない（iOS対策）
+  if(!bgmUserUnlocked) return;
+  if(!audioOpt || !audioOpt.bgmEnabled || (audioOpt.bgmVol ?? 0) <= 0){
+    stopBGM();
+    return;
+  }
+  ensureBgmAudio();
+  const a = window.__wonkeyBgmAudio;
+  if(!a) return;
+  a.volume = clamp(audioOpt.bgmVol, 0, 1);
+  const p = a.play();
+  if(p && typeof p.catch === "function"){
+    p.catch(() => {
+      // iOS/Safariのポリシー等で失敗してもゲーム自体は止めない（安定優先）
+    });
+  }
+}
+
+function stopBGM(){
+  const a = window.__wonkeyBgmAudio;
+  if(!a) return;
+  try{
+    a.pause();
+    // 安定優先：頭出しに戻す（次ONで最初から）
+    a.currentTime = 0;
+  }catch(_){}
+}
+// =============================
+  // Data: WORDS (normal waves)
+  // =============================
+  const WORDS = (window.WORDS && Array.isArray(window.WORDS) && window.WORDS.length)
+    ? window.WORDS
+    : [
+      {id:1, base:"beat", jp:"どきどきする", ans:"beat"},
+      {id:2, base:"cut", jp:"切る", ans:"cut"},
+      {id:3, base:"hurt", jp:"傷つける", ans:"hurt"},
+      {id:4, base:"put", jp:"置く、つける", ans:"put"},
+      {id:5, base:"read", jp:"読む", ans:"read"},
+      {id:6, base:"set", jp:"準備する", ans:"set"},
+      {id:7, base:"spread", jp:"広がる", ans:"spread"},
+      {id:8, base:"become", jp:"…になる", ans:"became"},
+      {id:9, base:"come", jp:"来る", ans:"came"},
+      {id:10, base:"run", jp:"走る", ans:"ran"},
+      {id:11, base:"bring", jp:"持ってくる", ans:"brought"},
+      {id:12, base:"build", jp:"建てる", ans:"built"},
+      {id:13, base:"buy", jp:"買う", ans:"bought"},
+      {id:14, base:"catch", jp:"捕まえる", ans:"caught"},
+      {id:15, base:"feel", jp:"感じる", ans:"felt"},
+      {id:16, base:"find", jp:"見つける", ans:"found"},
+      {id:17, base:"forget", jp:"忘れる", ans:"forgot"},
+      {id:18, base:"get", jp:"得る", ans:"got"},
+      {id:19, base:"have", jp:"持っている", ans:"had"},
+      {id:20, base:"hear", jp:"聞く", ans:"heard"},
+      {id:21, base:"keep", jp:"保つ", ans:"kept"},
+      {id:22, base:"leave", jp:"出発する", ans:"left"},
+      {id:23, base:"lose", jp:"失う", ans:"lost"},
+      {id:24, base:"make", jp:"作る", ans:"made"},
+      {id:25, base:"mean", jp:"意味する", ans:"meant"},
+      {id:26, base:"meet", jp:"会う", ans:"met"},
+      {id:27, base:"pay", jp:"払う", ans:"paid"},
+      {id:28, base:"say", jp:"言う", ans:"said"},
+      {id:29, base:"sell", jp:"売る", ans:"sold"},
+      {id:30, base:"send", jp:"おくる", ans:"sent"},
+      {id:31, base:"sit", jp:"すわる", ans:"sat"},
+      {id:32, base:"spend", jp:"過ごす", ans:"spent"},
+      {id:33, base:"stand", jp:"立っている", ans:"stood"},
+      {id:34, base:"teach", jp:"教える", ans:"taught"},
+      {id:35, base:"tell", jp:"話す、教える", ans:"told"},
+      {id:36, base:"think", jp:"思う", ans:"thought"},
+      {id:37, base:"understand", jp:"理解する", ans:"understood"},
+      {id:38, base:"win", jp:"勝つ", ans:"won"},
+      {id:39, base:"be", jp:"…である", ans:"was / were"},
+      {id:40, base:"begin", jp:"始める", ans:"began"},
+      {id:41, base:"break", jp:"破る", ans:"broke"},
+      {id:42, base:"choose", jp:"選ぶ", ans:"chose"},
+      {id:43, base:"do", jp:"する", ans:"did"},
+      {id:44, base:"draw", jp:"かく", ans:"drew"},
+      {id:45, base:"drink", jp:"飲む", ans:"drank"},
+      {id:46, base:"eat", jp:"食べる", ans:"ate"},
+      {id:47, base:"fall", jp:"落ちる", ans:"fell"},
+      {id:48, base:"give", jp:"与える", ans:"gave"},
+      {id:49, base:"go", jp:"行く", ans:"went"},
+      {id:50, base:"grow", jp:"（しだいに）…になる", ans:"grew"},
+      {id:51, base:"know", jp:"知っている", ans:"knew"},
+      {id:52, base:"ride", jp:"乗る", ans:"rode"},
+      {id:53, base:"rise", jp:"のぼる", ans:"rose"},
+      {id:54, base:"see", jp:"見る", ans:"saw"},
+      {id:55, base:"show", jp:"見せる", ans:"showed"},
+      {id:56, base:"sing", jp:"歌う", ans:"sang"},
+      {id:57, base:"speak", jp:"話す", ans:"spoke"},
+      {id:58, base:"swim", jp:"泳ぐ", ans:"swam"},
+      {id:59, base:"take", jp:"持っていく", ans:"took"},
+      {id:60, base:"wake", jp:"目が覚める", ans:"woke"}
+    ];
+
+  // Boss sentences: show a natural example sentence. Students type ONLY the past verb.
+  const BOSS_SENTENCE_TPL = {
+  "beat": "My heart ____ fast when I saw the test results.",
+  "cut": "I ____ the paper with scissors.",
+  "hurt": "I ____ my knee when I fell.",
+  "put": "I ____ my bag on the desk.",
+  "read": "I ____ a book after school.",
+  "set": "I ____ the table for dinner.",
+  "spread": "The news ____ quickly.",
+  "become": "He ____ a teacher last year.",
+  "come": "My friend ____ to my house yesterday.",
+  "run": "I ____ to the station.",
+  "bring": "She ____ her homework to class.",
+  "build": "They ____ a new school in our town.",
+  "buy": "I ____ a new notebook.",
+  "catch": "I ____ the ball with one hand.",
+  "feel": "I ____ happy when I heard the news.",
+  "find": "I ____ my lost key.",
+  "forget": "I ____ my umbrella at home.",
+  "get": "I ____ a present from my friend.",
+  "have": "I ____ a lot of homework yesterday.",
+  "hear": "I ____ a strange sound.",
+  "keep": "I ____ the secret.",
+  "leave": "We ____ home at seven.",
+  "lose": "I ____ my wallet on the way.",
+  "make": "I ____ a cake with my mom.",
+  "mean": "This word ____ \"\u53cb\u3060\u3061\".",
+  "meet": "I ____ my friend at the library.",
+  "pay": "I ____ for lunch.",
+  "say": "She ____ \"hello\" to me.",
+  "sell": "They ____ cakes at the festival.",
+  "send": "I ____ an email to my teacher.",
+  "sit": "I ____ next to my best friend.",
+  "spend": "I ____ the weekend at home.",
+  "stand": "He ____ up and answered.",
+  "teach": "My father ____ me English.",
+  "tell": "I ____ my parents the truth.",
+  "think": "I ____ about my future.",
+  "understand": "I ____ the question.",
+  "win": "Our team ____ the game.",
+  "be": "I ____ at home yesterday. (was / were)",
+  "begin": "The class ____ at nine.",
+  "break": "I ____ my phone.",
+  "choose": "I ____ this one.",
+  "do": "I ____ my homework.",
+  "draw": "I ____ a picture of a cat.",
+  "drink": "I ____ water after practice.",
+  "eat": "I ____ breakfast early.",
+  "fall": "I ____ asleep on the bus.",
+  "give": "I ____ my seat to an old man.",
+  "go": "I ____ to school by bike.",
+  "grow": "I ____ taller last year.",
+  "know": "I ____ the answer.",
+  "ride": "I ____ a bicycle to the park.",
+  "rise": "The sun ____ early.",
+  "see": "I ____ a rainbow.",
+  "show": "She ____ me her new pen.",
+  "sing": "We ____ a song in music class.",
+  "speak": "He ____ English in class.",
+  "swim": "I ____ in the pool yesterday.",
+  "take": "I ____ pictures at the museum.",
+  "wake": "I ____ up at six."
+};
+
+  function bossSentenceForWord(x){
+    const tpl = BOSS_SENTENCE_TPL[x.base] || "Yesterday, I ____.";
+    // Add Japanese meaning as a small hint without giving the answer.
+    return `${tpl} 〔${x.jp}〕`;
+  }
+
+  function buildBossSentencesForWave(w){
+    const [lo,hi]=wordRangeForWave(w);
+    const pool = WORDS.filter(x=>x.id>=lo && x.id<=hi);
+    return pool.map(x=>({
+      jpSentence: bossSentenceForWord(x),
+      answerVerb: x.ans
+    }));
+  }
+
+
+  function wordRangeForWave(w){
+    if(w<=5) return [1,15];
+    if(w<=10) return [16,35];
+    return [36,9999];
+  }
+
+  function pickWordForWave(w){
+    const [lo,hi]=wordRangeForWave(w);
+    // filter once per call (small list)
+    const pool = WORDS.filter(x=>x.id>=lo && x.id<=hi);
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  function pickBossSentence(list, avoidIndex){
+    if(!list || list.length===0) return { idx:0, s:{jpSentence:"（文がありません）", answerVerb:""} };
+    if(list.length <= 1) return { idx:0, s:list[0] };
+    let idx = Math.floor(Math.random()*list.length);
+    if(typeof avoidIndex === "number" && list.length > 1){
+      let guard = 0;
+      while(idx === avoidIndex && guard < 10){
+        idx = Math.floor(Math.random()*list.length);
+        guard++;
+      }
+    }
+    return { idx, s:list[idx] };
+  }
+
+  // =============================
+  // Persistence
+  // =============================
+  const UNLOCK_KEY = "wonkeybisines_hard_unlocked";
+  const RANK_KEY = "wonkeybisines_rank_v1";
+
+  const META_KEY = "wonkeybisines_meta_v1";
+
+  function loadMeta(){
+    let m = {};
+    try{ m = JSON.parse(localStorage.getItem(META_KEY) || "{}") || {}; }catch(_){ m = {}; }
+    if(typeof m.points !== "number") m.points = 0;
+    if(typeof m.hpPlus !== "number") m.hpPlus = 0;          // max +5
+    if(typeof m.luckPlus !== "number") m.luckPlus = 0;      // max +10
+    if(typeof m.xpBoost !== "number") m.xpBoost = 0;        // max +5 (each +5% XP)
+    if(typeof m.resurrection !== "number") m.resurrection = 0; // 0/1
+    if(typeof m.bombMax !== "number") m.bombMax = 0;        // max +3 (BB)
+    if(typeof m.shopSavvy !== "number") m.shopSavvy = 0;    // max 10
+    if(typeof m.stamCapPlus !== "number") m.stamCapPlus = 0;  // max +5 (cap 8)
+    return m;
+  }
+  function saveMeta(m){
+    try{ localStorage.setItem(META_KEY, JSON.stringify(m)); }catch(_){}
+  }
+  let meta = loadMeta();
+
+// =============================
+// Stamina (play limit)
+// =============================
+const STAMINA_STATE_KEY = "wonkey_stamina_state_v1"; // {cur:int, last:int(ms)}
+
+function staminaCap(){
+  meta = loadMeta();
+  return 3 + clamp(meta.stamCapPlus || 0, 0, 5); // 3..8
+}
+
+function loadStaminaState(){
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem(STAMINA_STATE_KEY) || "null"); }catch(_){ s = null; }
+  const cap = staminaCap();
+  const now = Date.now();
+  if(!s || typeof s.cur !== "number" || typeof s.last !== "number"){
+    // 初回：ストックは3（上限が増えていても初期値は3）
+    s = { cur: Math.min(3, cap), last: now };
+    try{ localStorage.setItem(STAMINA_STATE_KEY, JSON.stringify(s)); }catch(_){}
+    return s;
+  }
+  // clamp
+  s.cur = Math.floor(clamp(s.cur, 0, cap));
+  s.last = Math.floor(s.last || now);
+  return s;
+}
+
+function saveStaminaState(s){
+  try{ localStorage.setItem(STAMINA_STATE_KEY, JSON.stringify(s)); }catch(_){}
+}
+
+function regenStamina(){
+  const cap = staminaCap();
+  const s = loadStaminaState();
+  const now = Date.now();
+  const INTERVAL = 30 * 60 * 1000; // 30min
+  if(s.cur < cap){
+    const elapsed = Math.max(0, now - s.last);
+    const gain = Math.floor(elapsed / INTERVAL);
+    if(gain > 0){
+      s.cur = Math.min(cap, s.cur + gain);
+      s.last = s.last + gain * INTERVAL;
+      saveStaminaState(s);
+    }
+  }else{
+    // 満タンのときは、次の回復計算の基点を「いま」に寄せておく（未来のズレ防止）
+    s.last = now;
+    saveStaminaState(s);
+  }
+  return { cur:s.cur, cap, last:s.last };
+}
+
+function msToMMSS(ms){
+  const t = Math.max(0, Math.floor(ms/1000));
+  const m = Math.floor(t/60);
+  const s = t%60;
+  return `${m}:${String(s).padStart(2,"0")}`;
+}
+
+let staminaUITimer = null;
+function updateStaminaUI(){
+  if(!staminaInfoEl) return;
+  const r = regenStamina();
+  staminaInfoEl.textContent = `スタミナ：${r.cur}/${r.cap}`;
+
+  // 次回回復まで
+  const INTERVAL = 30 * 60 * 1000;
+  if(r.cur >= r.cap){
+    if(staminaNextEl) staminaNextEl.textContent = "満タン";
+  }else{
+    const now = Date.now();
+    const remain = INTERVAL - Math.max(0, now - r.last);
+    if(staminaNextEl) staminaNextEl.textContent = `次の回復まで：${msToMMSS(remain)}`;
+  }
+
+  // スタートボタン制御（devは除外）
+  const canPlay = (r.cur > 0);
+  if(btnStartEasy) btnStartEasy.disabled = !canPlay;
+  if(btnStartHard) btnStartHard.disabled = !canPlay;
+  if(!canPlay){
+    msg.textContent = "スタミナ不足（30分で1回復）";
+  }
+}
+
+function startStaminaTicker(){
+  if(staminaUITimer) clearInterval(staminaUITimer);
+  staminaUITimer = setInterval(()=>{
+    if(phase === "title" || phase === "shop" || phase === "rank"){
+      updateStaminaUI();
+    }
+  }, 1000);
+}
+
+function spendStaminaForRun(){
+  // devは消費しない
+  if(mode === "dev") return true;
+  const r = regenStamina();
+  if(r.cur <= 0) return false;
+  const s = loadStaminaState();
+  s.cur = Math.max(0, Math.floor(s.cur) - 1);
+  saveStaminaState(s);
+  updateStaminaUI();
+  return true;
+}
+
+
+  function calcEarnedPoints(clearedWave){
+    const w = clamp(clearedWave||0, 0, CONFIG.waveTotal);
+    if(w <= 0) return 0;
+    // wave1 => 1pt, wave15 => 100pt（途中は二次関数で増加）
+    return Math.max(1, Math.floor(Math.pow(w/CONFIG.waveTotal, 2) * 100));
+  }
+
+
+  function isHardUnlocked(){ return localStorage.getItem(UNLOCK_KEY) === "1"; }
+  function setHardUnlocked(){ localStorage.setItem(UNLOCK_KEY, "1"); }
+
+  function loadRank(){
+    try{
+      const raw = localStorage.getItem(RANK_KEY);
+      if(!raw) return [];
+      const arr = JSON.parse(raw);
+      if(!Array.isArray(arr)) return [];
+      return arr;
+    }catch(e){ return []; }
+  }
+  function saveRank(arr){
+    try{
+      localStorage.setItem(RANK_KEY, JSON.stringify(arr.slice(0,10)));
+    }catch(e){}
+  }
+  function addRankEntry(entry){
+    const arr = loadRank();
+    arr.push(entry);
+    arr.sort((a,b)=> (b.score||0) - (a.score||0));
+    saveRank(arr);
+  }
+
+  // =============================
+  // CONFIG
+  // =============================
+  const CONFIG = {
+    waveTotal: 15,
+    bossWaves: new Set([5,10,15]),
+
+    // wave difficulty
+    enemiesPerWave(w){
+      const base = 12 + (w-1)*2;
+      return clamp(base, 12, 42);
+    },
+    spawnEveryMs(w){
+      return clamp(Math.floor(1100 * (0.96 ** (w-1))), 520, 1100);
+    },
+    baseEnemySpeedPerMs(){
+      const r = rect();
+      const dist = Math.min(r.width, r.height) / 2 + 20;
+      return dist / 12000;
+    },
+    enemySpeedMulByWave(w){
+      return 1 + 0.06*(w-1);
+    },
+
+    // collision
+    playerHitRadius: 28,
+    bulletHitRadius: 20,
+    orbHitRadius: 20,
+    orbHitCooldownMs: 220, // オーブの連続ヒット防止（ms）
+
+    // turret/laser base
+    turretIntervalMs: 3000,
+
+    // parry
+    // ベースは少し小さめ（レベルアップで拡大）
+    parryRadius: 50,
+    parryWindowMs: 150,
+    parryCdMs: 2000,
+    parryMaxPerWave: 4,
+    parrySpawnMinMs: 1400,
+    parrySpawnMaxMs: 3600,
+    parrySlowMul: 0.58,
+    parrySlowMs: 2400,
+
+    // split
+    splitChildren: 2,
+
+    // boss hp random ranges
+    bossHpChoices: {
+      5:  [3,4],
+      10: [5,6],
+      15: [7,8]
+    },
+    bossXpByWave: { 5:12, 10:24, 15:40 },
+    bossScoreByWave: { 5:80, 10:140, 15:220 },
+
+    // boss movement / contact
+    bossBaseSpeedPerMs: 0.020,         // 基本速度（msあたり）
+    bossApproachMulByWave(w){          // waveが上がると少し速く
+      if(w === 5) return 1.00;
+      if(w === 10) return 1.50;
+      if(w === 15) return 2.00;
+      return 1.0;
+    },
+    bossHitCooldownMs: 700,            // 連続接触防止
+    bossTouchRadius: 38,               // 接触半径（プレイヤーとboss距離）
+
+    // enemy type weights by wave
+    typeWeights(w){
+      if(w <= 5){
+        return [
+          ["normal", 100],
+          ["tank", 0],
+          ["fast", 0],
+          ["tele", 0],
+          ["split", 0],
+        ];
+      }
+      if(w <= 10){
+        const t = (w - 6) / 4; // wave6=0 ... wave10=1
+        const normal = Math.round(78 - 18 * t); // 78→60
+        const tank   = Math.round(12 + 10 * t); // 12→22
+        const fast   = Math.round(10 +  8 * t); // 10→18
+        return [
+          ["normal", normal],
+          ["tank", tank],
+          ["fast", fast],
+          ["tele", 0],
+          ["split", 0],
+        ];
+      }
+      const t = clamp((w-11)/(CONFIG.waveTotal-11), 0, 1);
+      const normal = 56 - Math.floor(14*t);
+      const tank   = 14 + Math.floor(8*t);
+      const fast   = 14 + Math.floor(6*t);
+      const tele   = 8  + Math.floor(8*t);
+      const split  = 8  + Math.floor(10*t);
+      return [
+        ["normal", normal],
+        ["tank", tank],
+        ["fast", fast],
+        ["tele", tele],
+        ["split", split],
+      ];
+    }
+  };
+
+  // =============================
+  // Game State
+  // =============================
+  const player = { x: 0, y: 0 };
+
+  let running = false;
+  let startLock = false; // 二重起動防止
+  let mode = "easy";
+  let phase = "title";
+  let wave = 1;
+
+  let enemies = [];
+  let bullets = [];     // {x,y,vx,vy,src, pierceLeft, homingLv, alive, targetId}
+  let lasers = [];
+  let parryOrbs = [];
+
+  let boss = null;      // {el,x,y,hp,maxHp,answer,sentence,lastSentenceIdx,knockVX,knockVY,touchCd}
+
+  let tPrev = 0;
+  let lastSpawn = 0;
+  let lastTurret = 0;
+
+  const runStat = {
+    startAt: 0,
+    timeMs: 0,
+    miss: 0,
+    parrySuccess: 0,
+    cleared: false
+  };
+
+  const state = {
+    hp: 5,
+    lv: 1,
+    xp: 0,
+    need: 6,
+    pendingUpgrades: 0,
+    score: 0,
+
+    luck: 1,
+
+    // combo (for Combo Knockback upgrade later)
+    comboCount: 0,
+    comboTier: 0, // 0..5 (every 5 correct)
+
+
+    toSpawn: 0,
+    spawnEvery: 1100,
+    enemySpeed: 0.1,
+
+    shots: 1,
+    bulletSpeed: 0.95,
+    bulletSizeMul: 1.0,
+    xpMul: 1.0,
+    comboKbLv: 0,
+
+    // player-bullet only
+    homingLv: 0,     // 0..5
+    pierce: 0,
+
+    explodeR: 0,
+
+    orbs: 0,
+    orbSpeed: 0.0038,
+    orbRadius: 55,
+
+    turret: 0,
+
+    laserLv: 0,
+    laserCd: 0,
+
+    slowPassiveLv: 0,
+    slowMul: 1.0,
+
+    parryCd: 0,
+    parryActive: 0,
+    slowBuffMs: 0,
+    parrySpawnedThisWave: 0,
+    nextParrySpawn: 0,
+
+    upgLv: {
+      shots: 0,
+      speed: 0,
+      size: 0,
+      xp: 0,
+      combo: 0,
+      homing: 0, // now 0..5
+      pierce: 0,
+      explode: 0,
+      orbs: 0,
+      turret: 0,
+      laser: 0,
+      slow: 0,
+      luck: 0,
+    }
+  };
+
+  // =============================
+  // Title UI
+  // =============================
+// ===== DEV MODE (teacher only) =====
+// NOTE: クライアントHTMLだけでは完全な秘匿は不可能ですが、
+// 「隠し操作 + パスコード + セッション限定」にすると授業運用ではほぼ触られません。
+const DEV_PASS = "taihen"; // ←先生だけが知る合言葉（推測されにくいもの推奨）
+let devMode = (sessionStorage.getItem("wonkey_dev") === "1");
+
+function enableDevMode(){
+  devMode = true;
+  sessionStorage.setItem("wonkey_dev", "1");
+  refreshTitleUI();
+  showToast("DEV MODE", "開発モードON（このタブだけ）", 900);
+}
+function disableDevMode(){
+  devMode = false;
+  sessionStorage.removeItem("wonkey_dev");
+  refreshTitleUI();
+  showToast("DEV MODE", "開発モードOFF", 900);
+}
+
+  let btnStartHard = null;
+  function refreshTitleUI(){
+    hardBtnSlot.innerHTML = "";
+    btnStartHard = null;
+
+    if(isHardUnlocked()){
+      const b = document.createElement("button");
+      b.className = "bigBtn";
+      b.textContent = "裏モード";
+      b.addEventListener("click", () => startGame("hard"));
+      hardBtnSlot.appendChild(b);
+      btnStartHard = b;
+      unlockNote.innerHTML = "裏モード（hard）が解禁されています！";
+    }else{
+      unlockNote.innerHTML = "裏モード（hard）は、easyで <b>15waveクリア</b> すると解禁されます。";
+    }
+// --- Dev button (only when devMode enabled) ---
+if(devMode){
+  const d = document.createElement("button");
+  d.className = "bigBtn";
+  d.textContent = "開発モード";
+  d.addEventListener("click", () => startGame("dev"));
+  hardBtnSlot.appendChild(d);
+}
+
+  }
+
+  function showTitle(){
+    stopBGM();
+    running = false;
+    phase = "title";
+    titleOverlay.style.display = "flex";
+    upgradeOverlay.style.display = "none";
+    resultOverlay.style.display = "none";
+    rankOverlay.style.display = "none";
+    shopOverlay.style.display = "none";
+    bossPanel.style.display = "none";
+    inp.value = "";
+    inp.blur();
+    msg.textContent = "スタートを押して開始";
+    refreshTitleUI();
+    setupDevPanel();
+    setHUD();
+      updateStaminaUI();
+    startStaminaTicker();
+  }
+
+  // =============================
+  // HUD
+  // =============================
+  function setHUD(){
+    const mhp = (state.maxHp||5);
+    hpbar.style.width = `${(state.hp/Math.max(1,mhp))*100}%`;
+    if(hpnum) hpnum.textContent = `${state.hp}/${mhp}`;
+    lvEl.textContent = state.lv;
+    xpEl.textContent = Math.floor(state.xp);
+    needEl.textContent = state.need;
+    scoreEl.textContent = state.score;
+    waveEl.textContent = wave;
+    waveTotalEl.textContent = CONFIG.waveTotal;
+    modeLabel.textContent = mode;
+    luckEl.textContent = state.luck;
+    if(bombsEl) bombsEl.textContent = (state.bombUses ?? 0);
+
+    if(comboEl) comboEl.textContent = state.comboCount;
+    if(comboTierEl) {
+      const t = state.comboTier || 0;
+      comboTierEl.textContent = "x" + t;
+      // tier color
+      comboTierEl.classList.remove("comboTier0","comboTier1","comboTier2","comboTier3","comboTier4","comboTier5");
+      comboTierEl.classList.add("comboTier" + t);
+      // pop on tier up
+      const prev = state._comboTierPrev ?? 0;
+      if(t > prev){
+        comboTierEl.classList.remove("comboPop");
+        // force reflow
+        void comboTierEl.offsetWidth;
+        comboTierEl.classList.add("comboPop");
+      }
+      state._comboTierPrev = t;
+    }
+
+    phaseLabel.textContent = (phase === "boss") ? "（BOSS）" : "";
+  }
+
+  // =============================
+  // Derived stats from upgrades
+  // =============================
+  function recalcFromUpgrades(){
+    state.shots = 1 + state.upgLv.shots;
+    state.bulletSpeed = 0.95 + 0.12 * state.upgLv.speed;
+
+    // range (bullet lifetime)
+    state.rangeLv = clamp(state.upgLv.range || 0, 0, 5);
+    state.bulletTTLms = 500 + (state.rangeLv/5) * 1000; // 0.5s → 1.5s
+
+    // bullet size (player bullets only)
+    const sz = clamp(state.upgLv.size || 0, 0, 3);
+    const szTable = [0, 0.15, 0.30, 0.50];
+    state.bulletSizeMul = 1.0 + szTable[sz];
+
+    // XP boost
+    const xpLv = clamp(state.upgLv.xp || 0, 0, 5);
+    const xpTable = [0, 0.10, 0.20, 0.35, 0.55, 0.80];
+    state.xpMul = 1.0 + xpTable[xpLv];
+    // meta XP boost (each +5%, max +25%)
+    const metaXp = clamp(meta.xpBoost || 0, 0, 5);
+    state.xpMul *= (1.0 + 0.05 * metaXp);
+
+    // combo knockback skill level
+    state.comboKbLv = clamp(state.upgLv.combo || 0, 0, 5);
+
+    // parry upgrade (Lv0..3)
+    state.parryLv = clamp(state.upgLv.parry || 0, 0, 3);
+    state.parryRadiusEff = CONFIG.parryRadius + (10 * state.parryLv); // Lv0:50 → Lv3:80
+    // slow effect enhanced by parry level (強さ＆時間を少しずつ)
+    state.parrySlowMulEff = Math.max(0.40, CONFIG.parrySlowMul - 0.05 * state.parryLv);
+    state.parrySlowMsEff  = CONFIG.parrySlowMs + 400 * state.parryLv; // 2.4s → 3.6s
+
+    // shout (Lv0..3)
+    state.shoutLv = clamp(state.upgLv.shout || 0, 0, 3);
+
+    // homing now leveled (0..5)
+    state.homingLv = clamp(state.upgLv.homing, 0, 5);
+
+    state.pierce = state.upgLv.pierce;
+
+    const exLv = state.upgLv.explode;
+    state.explodeR = (exLv === 0) ? 0 : (35 + (exLv-1)*15);
+
+    // orbs: max is skill level, alive orbs have durability
+    state.orbMax = state.upgLv.orbs;
+    const orbLv = clamp(state.upgLv.orbs || 0, 0, 4);
+    state.orbDurBase = (orbLv>0) ? (1 + orbLv) : 0; // Lv1:2, Lv2:3, Lv3:4, Lv4:5
+    if(!state.orbHP) state.orbHP = [];
+    if(!state.orbCD) state.orbCD = [];
+    // sync arrays to orbMax (level-up adds new orb with full durability)
+    while(state.orbHP.length < state.orbMax){
+      state.orbHP.push(state.orbDurBase);
+      state.orbCD.push(0);
+    }
+    if(state.orbHP.length > state.orbMax){
+      state.orbHP.length = state.orbMax;
+      state.orbCD.length = state.orbMax;
+    }
+    state.orbs = state.orbHP.length;
+    state.turret = state.upgLv.turret;
+
+    state.laserLv = state.upgLv.laser;
+
+    state.slowPassiveLv = state.upgLv.slow;
+    state.slowMul = Math.max(0.72, 1.0 - 0.06*state.slowPassiveLv);
+
+    state.luck = clamp(1 + (state.upgLv.luck || 0) + (meta.luckPlus || 0), 1, 15);
+  }
+
+  // =============================
+  // Spawning & Entities
+  // =============================
+  let nextEntityId = 1;
+
+  function pickWeighted(weights){
+    const sum = weights.reduce((s, x)=> s + x[1], 0);
+    let r = Math.random() * sum;
+    for(const [k, w] of weights){
+      r -= w;
+      if(r <= 0) return k;
+    }
+    return weights[weights.length-1][0];
+  }
+
+  function makeEnemy(type, item, opts={}){
+    const r = rect();
+    const side = Math.floor(Math.random()*4);
+    let x,y;
+    if(side===0){ x = Math.random()*r.width; y = -22; }
+    if(side===1){ x = Math.random()*r.width; y = r.height+22; }
+    if(side===2){ x = -22; y = Math.random()*r.height; }
+    if(side===3){ x = r.width+22; y = Math.random()*r.height; }
+
+    const el = document.createElement("div");
+    el.className = "enemy";
+    game.appendChild(el);
+
+    const enemy = {
+      id: nextEntityId++,
+      type,
+      item,
+      x, y,
+      dead:false,
+      el,
+      teleCd: rand(900, 1700),
+      teleAcc: 0,
+      ans: "",
+      label: "",
+      hp: 1,
+      maxHp: 1,
+      speedMul: 1,
+    };
+
+    if(type === "normal"){
+      enemy.hp = 1; enemy.maxHp = 1; enemy.speedMul = 1.0;
+      enemy.el.classList.add("normal");
+    }
+    if(type === "tank"){
+      enemy.hp = 3; enemy.maxHp = 3; enemy.speedMul = 0.72;
+      enemy.el.classList.add("tank");
+    }
+    if(type === "fast"){
+      enemy.hp = 1; enemy.maxHp = 1; enemy.speedMul = 1.35;
+      enemy.el.classList.add("fast");
+    }
+    if(type === "tele"){
+      enemy.hp = 1; enemy.maxHp = 1; enemy.speedMul = 1.00;
+      enemy.el.classList.add("tele");
+      enemy.teleCd = rand(900, 1500);
+      enemy.teleAcc = 0;
+    }
+    if(type === "split"){
+      enemy.hp = 1; enemy.maxHp = 1; enemy.speedMul = 1.05;
+      enemy.el.classList.add("split");
+    }
+    if(type === "child"){
+      enemy.hp = 1; enemy.maxHp = 1; enemy.speedMul = 1.18;
+      enemy.el.classList.add("child");
+    }
+
+    if(type === "child"){
+      enemy.ans = (opts.letter || "a");
+      enemy.label = enemy.ans.toUpperCase();
+      el.textContent = enemy.label;
+    }else{
+      enemy.ans = item.ans;
+      enemy.label = (mode === "easy") ? item.ans : item.jp;
+      el.textContent = enemy.label;
+    }
+
+    el.style.left = x+"px";
+    el.style.top  = y+"px";
+
+    enemies.push(enemy);
+    return enemy;
+  }
+
+  function spawnEnemy(){
+    if(phase !== "normal") return;
+    if(state.toSpawn <= 0) return;
+    const cap = (wave < 5) ? 5 : (wave < 10 ? 8 : 34); // Wave1-4: max5, Wave6-9: max8
+    if(enemies.length >= cap) return;
+
+    const w = wave;
+    const type = pickWeighted(CONFIG.typeWeights(w));
+    const item = pickWordForWave(w);
+    makeEnemy(type, item);
+
+    state.toSpawn -= 1;
+  }
+
+  function spawnSplitChildren(parent){
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    let a = letters[Math.floor(Math.random()*26)];
+    let b = letters[Math.floor(Math.random()*26)];
+    if(b === a) b = letters[(letters.indexOf(a)+1)%26];
+
+    const child1 = makeEnemy("child", {ans:a, jp:"", base:""}, { letter: a });
+    const child2 = makeEnemy("child", {ans:b, jp:"", base:""}, { letter: b });
+
+    for(const c of [child1, child2]){
+      c.x = parent.x + rand(-18, 18);
+      c.y = parent.y + rand(-18, 18);
+      c.el.style.left = c.x+"px";
+      c.el.style.top  = c.y+"px";
+    }
+  }
+
+  function randomAliveEnemy(){
+    const alive = enemies.filter(e => e && !e.dead);
+    if(alive.length === 0) return null;
+    return alive[Math.floor(Math.random()*alive.length)];
+  }
+
+  // Parry orb (shot from an enemy)
+  function spawnParryOrb(){
+    if(phase !== "normal") return;
+    // Parry is disabled until after the first boss (wave5)
+    if((wave||1) < 6) return;
+    if(state.parrySpawnedThisWave >= CONFIG.parryMaxPerWave) return;
+    if(parryOrbs.length >= 1) return;
+
+    const shooter = randomAliveEnemy();
+    if(!shooter){
+      state.nextParrySpawn = Math.min(state.nextParrySpawn, 350);
+      return;
+    }
+
+    let x = shooter.x + rand(-6, 6);
+    let y = shooter.y + rand(-6, 6);
+
+    const el = document.createElement("div");
+    el.className = "parryOrb";
+    game.appendChild(el);
+
+    const dx = player.x - x;
+    const dy = player.y - y;
+    const d  = Math.hypot(dx,dy) || 1;
+    const sp = rand(0.14, 0.20);
+
+    const o = { x, y, vx:(dx/d)*sp, vy:(dy/d)*sp, el, dead:false };
+    el.style.left = (x-9)+"px";
+    el.style.top  = (y-9)+"px";
+
+    parryOrbs.push(o);
+    state.parrySpawnedThisWave += 1;
+  }
+
+  // =============================
+  // Combat
+  // =============================
+  function nearestEnemy(x,y){
+    let best = null, bd = 1e9;
+    for(const e of enemies){
+      if(e.dead) continue;
+      const d = Math.hypot(e.x-x, e.y-y);
+      if(d < bd){ bd = d; best = e; }
+    }
+    return best;
+  }
+
+  // homing strength table (Lv1..5)
+  function homingAlphaByLv(lv){
+    // 0.05 → 0.20 (1..5)
+    // Lv1: ほぼ直進、Lv3: 追尾が分かる、Lv5: かなり強い
+    const table = [0, 0.05, 0.08, 0.12, 0.16, 0.20];
+    return table[clamp(lv,0,5)];
+  }
+
+  function fireBulletAt(enemy, angleJitter=0, src="player"){
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - player.y;
+    const baseAng = Math.atan2(dy, dx) + angleJitter;
+
+    // ★重要：ホーミング/貫通は「srcがplayer」の弾だけに付与
+    const homingLv = (src === "player") ? state.homingLv : 0;
+    const pierceLeft = (src === "player") ? state.pierce : 0;
+
+    bullets.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(baseAng) * state.bulletSpeed,
+      vy: Math.sin(baseAng) * state.bulletSpeed,
+      src,
+      pierceLeft,
+      homingLv,
+      ttlMs: (src === "player") ? state.bulletTTLms : 900,
+      alive: true,
+      targetId: enemy ? enemy.id : null,
+      color: (src === "player") ? comboBulletColor(state.comboTier||0) : null
+    });
+  }
+
+  function fireSpread(enemy, src="player"){
+    const n = state.shots;
+    if(n <= 1){ fireBulletAt(enemy, 0, src); return; }
+    const spread = 0.14;
+    const start = -spread*(n-1)/2;
+    for(let i=0;i<n;i++){
+      fireBulletAt(enemy, start + spread*i, src);
+    }
+  }
+
+  function pointLineDistance(px, py, x0, y0, ang){
+    const vx = Math.cos(ang), vy = Math.sin(ang);
+    const wx = px - x0, wy = py - y0;
+    return Math.abs(wx*vy - wy*vx);
+  }
+
+  function laserRadius(){
+    if(state.laserLv <= 0) return 0;
+    return 18 + 4*(state.laserLv-1);
+  }
+  function laserCooldownMs(){
+    if(state.laserLv <= 0) return 3000;
+    return Math.max(1800, 3000 - 300*(state.laserLv-1));
+  }
+  function fireLaser(){
+    if(state.laserLv <= 0) return;
+    if(state.laserCd > 0) return;
+
+    const target = nearestEnemy(player.x, player.y);
+    if(!target) return;
+
+    const dx = target.x - player.x;
+    const dy = target.y - player.y;
+    const ang = Math.atan2(dy, dx);
+    lasers.push({ ang, life: 140 });
+
+    const R = laserRadius();
+    enemies.forEach(e => {
+      if(e.dead) return;
+      const dist = pointLineDistance(e.x, e.y, player.x, player.y, ang);
+      if(dist <= R){
+        hitEnemy(e, 999, true);
+      }
+    });
+
+    state.laserCd = laserCooldownMs();
+    playSE("hit");
+  }
+
+  // =============================
+  // Damage & XP
+  // =============================
+  
+function damage(){
+    if(state.invuln > 0) return;
+    state.hp -= 1;
+    setHUD();
+    playSE("bad");
+
+    if(state.hp <= 0){
+      // Resurrection (meta): 1回だけHP50%で復活
+      if(!state.resUsed && (meta.resurrection||0) >= 1){
+        state.resUsed = true;
+        state.hp = Math.max(1, Math.ceil((state.maxHp||5) * 0.5));
+        state.invuln = 2000; // ms
+        playSE("ok");
+        showToast("RESURRECT", "復活！", 900);
+        setHUD();
+        return;
+      }
+      running = false;
+      endRun(false);
+    }
+  }
+
+
+  function gainXP(n){
+    state.xp += (n * (state.xpMul || 1.0));
+    while(state.xp >= state.need){
+      state.xp -= state.need;
+      state.lv += 1;
+      state.need = Math.max(state.need + 1, Math.ceil(state.need * 1.1));
+      state.pendingUpgrades = (state.pendingUpgrades || 0) + 1;
+    }
+    if((state.pendingUpgrades || 0) > 0 && upgradeOverlay.style.display !== "flex"){
+      showUpgrade();
+      playSE("lv");
+    }
+    setHUD();
+  }
+    function gainKillPoints(){
+      // Enemy defeat points: base 0.1pt, affected by existing combo tier (max x6).
+      // To keep balance stable, cap per-kill gain at 0.3pt.
+      const tier = state.comboTier || 0;         // 0..5
+      const comboMul = Math.min(6, Math.max(1, tier + 1)); // 1..6
+      const gain10 = Math.min(3, 1 * comboMul);  // 0.1pt units (cap 0.3pt)
+      state.killPts10 = (state.killPts10 || 0) + gain10;
+    }
+
+
+  // =============================
+  // Enemy Hit / Kill (normal only)
+  // =============================
+  function hitEnemy(e, dmg=1, byLaser=false){
+    if(e.dead) return;
+
+    e.hp -= dmg;
+    if(e.hp > 0) return;
+
+    e.dead = true;
+    try{ e.el.remove(); }catch(_){}
+
+    if(e.type === "split"){
+      spawnSplitChildren(e);
+    }
+
+    state.score += byLaser ? 12 : 10;
+    gainXP(1);
+      gainKillPoints();
+
+      if(state.explodeR > 0){
+      const R = state.explodeR;
+      for(const other of enemies){
+        if(other.dead) continue;
+        const d = Math.hypot(other.x - e.x, other.y - e.y);
+        if(d <= R){
+          other.dead = true;
+          try{ other.el.remove(); }catch(_){}
+          if(other.type === "split") spawnSplitChildren(other);
+          state.score += 6;
+          gainXP(1);
+          gainKillPoints();
+        }
+      }
+    }
+  }
+
+  // =============================
+  // Upgrades: rarity + leveling (+ Luck)
+  // =============================
+  const RARITY_WEIGHT = { common: 80, rare: 15, epic: 5 };
+  function rarityWeightsWithLuck(){
+    const base = { ...RARITY_WEIGHT };
+    const sum = base.common + base.rare + base.epic;
+    const baseHigh = (base.rare + base.epic) / sum;
+    const L = clamp((state.luck - 1), 0, 14); // 0..14 (luck 1..15)
+    const bonusMax = 0.10; // 高ランク合計の上乗せ上限（+10%）
+    const bonus = bonusMax * (1 - Math.exp(-L / 5));
+    // 高ランク合計は最大30%まで（Luck最大でも壊れない）
+    const high = clamp(baseHigh + bonus, 0, 0.30);
+    const low = 1 - high;
+
+    const heSum = base.rare + base.epic;
+    const rareFrac = heSum > 0 ? (base.rare / heSum) : 0.8;
+    const epicFrac = heSum > 0 ? (base.epic / heSum) : 0.2;
+
+    const TOTAL = 1000;
+    const highW = Math.round(TOTAL * high);
+    const lowW  = TOTAL - highW;
+
+    const rareW = Math.max(1, Math.round(highW * rareFrac));
+    const epicW = Math.max(1, highW - rareW);
+
+    return { common: Math.max(1, lowW), rare: rareW, epic: epicW };
+  }
+
+  const UPGRADES = [
+    { id:"shots",  name:"ダブルショット", rarity:"common", maxLv:2, tag:"武器", desc:"弾数が増える（最大3）" },
+    { id:"speed",  name:"高速弾",       rarity:"common", maxLv:4, tag:"武器", desc:"弾が速くなる（当てやすい）" },
+    { id:"range",  name:"レンジ",       rarity:"common", maxLv:5, tag:"武器", desc:"弾が消えるまでの時間が伸びる（0.5秒→最大1.5秒）" },
+
+    { id:"size",   name:"弾サイズUP",   rarity:"common", maxLv:3, tag:"武器", desc:"弾の当たり判定が大きくなる（安定）" },
+    { id:"xp",     name:"XPブースト",   rarity:"common", maxLv:5, tag:"成長", desc:"獲得XPが増える（レベルが上がりやすい）" },
+    { id:"combo",  name:"コンボノックバック", rarity:"common", maxLv:5, tag:"技術", desc:"連続正解で押し返しが強くなる（ミスでリセット）" },
+
+    // ★修正①：ホーミングはLv1..5で段階化
+    { id:"homing", name:"ホーミング",   rarity:"rare",   maxLv:5, tag:"武器", desc:"弾が少しずつ追尾（Lv5で強い）" },
+
+    { id:"pierce", name:"貫通弾",       rarity:"rare",   maxLv:3, tag:"武器", desc:"弾が複数の敵を通り抜ける（Enter弾のみ）" },
+    { id:"explode",name:"爆発弾",       rarity:"epic",   maxLv:3, tag:"武器", desc:"倒すと周りも巻き込む（範囲）" },
+    { id:"orbs",   name:"回転オーブ",   rarity:"rare",   maxLv:4, tag:"武器", desc:"自機の周りを回って自動攻撃（最大4）" },
+    { id:"turret", name:"砲台",         rarity:"rare",   maxLv:2, tag:"武器", desc:"自動で敵を撃つ砲台が増える（最大2）" },
+    { id:"laser",  name:"レーザー強化", rarity:"epic",   maxLv:3, tag:"必殺", desc:"Spaceレーザー（Lvで強化）" },
+    { id:"slow",   name:"スローモーション", rarity:"common", maxLv:5, tag:"防御", desc:"敵が少し遅くなる（常時）" },
+
+    { id:"parry",  name:"パリィ強化", rarity:"common", maxLv:3, tag:"防御", desc:"パリィの円が広がり、成功時スロー効果も強化（Lv3まで）" },
+{ id:"shout",  name:"SHOUT",       rarity:"rare",   maxLv:3, tag:"パリィ", desc:"パリィボタンで範囲ノックバック（CD10秒・ボス無効）", requiresShopId:"unlockShout" },
+{ id:"reroll", name:"リロール",    rarity:"rare",   maxLv:3, tag:"成長",   desc:"レベルアップ選択肢をリロールできる（Lvごと回数増）", requiresShopId:"unlockReroll" },
+{ id:"frozen", name:"フローズン",  rarity:"rare",   maxLv:3, tag:"特殊",   desc:"入力「FR」で全体スロー/停止（Lvで回数・効果UP）", requiresShopId:"unlockFrozen" },
+
+    { id:"luck",   name:"Luck+", rarity:"common", maxLv:5, tag:"運", desc:"高ランク（RARE/EPIC）の出現率 +1%（最大5）", special:"luck" },
+    { id:"hp",     name:"HP+1",  rarity:"common", maxLv:99, tag:"回復", desc:"HP回復（最大5）", special:"heal" },
+  ];
+
+  function canPickUpgrade(u){
+    if(u.requiresShopId){
+      try{ if((meta?.[u.requiresShopId]||0) <= 0) return false; }catch(e){ return false; }
+    }
+    if(u.special === "heal") return state.hp < (state.maxHp||5);
+    if(u.special === "luck") return (state.upgLv.luck||0) < 5 && state.luck < 15;
+    const cur = state.upgLv[u.id] ?? 0;
+    return cur < u.maxLv;
+  }
+
+  function weightedUpgradePool(){
+    const pool = [];
+    const rw = rarityWeightsWithLuck();
+    for(const u of UPGRADES){
+      if(!canPickUpgrade(u)) continue;
+      const w = rw[u.rarity] || 1;
+      pool.push({ u, w });
+    }
+    return pool;
+  }
+
+  function pickOneUpgrade(excludeIds){
+    const pool = weightedUpgradePool().filter(x => !excludeIds.has(x.u.id));
+    if(pool.length === 0) return null;
+    const sum = pool.reduce((s,x)=> s + x.w, 0);
+    let r = Math.random() * sum;
+    for(const x of pool){
+      r -= x.w;
+      if(r <= 0) return x.u;
+    }
+    return pool[pool.length-1].u;
+  }
+
+  function pick3Upgrades(){
+    const picked = [];
+    const used = new Set();
+    for(let i=0;i<3;i++){
+      const u = pickOneUpgrade(used);
+      if(!u) break;
+      picked.push(u);
+      used.add(u.id);
+    }
+    return picked;
+  }
+
+  function applyUpgrade(u){
+    if(u.special === "heal"){
+      state.hp = Math.min((state.maxHp||5), state.hp + 1);
+      playSE("ok");
+      setHUD();
+      return;
+    }
+    if(u.special === "luck"){
+      state.upgLv.luck = clamp((state.upgLv.luck||0) + 1, 0, 5);
+      recalcFromUpgrades();
+    try{ refreshFrozenUses(); }catch(_){ state.frozenUses = 0; }
+      playSE("ok");
+      setHUD();
+      return;
+    }
+    const cur = state.upgLv[u.id] ?? 0;
+    state.upgLv[u.id] = Math.min((u.maxLv ?? 99), cur + 1);
+    recalcFromUpgrades();
+    playSE("ok");
+    setHUD();
+  }
+
+  function upgradeCardTitle(u){
+    if(u.special === "heal") return `${u.name}`;
+    if(u.special === "luck"){
+      const next = clamp(state.luck + 1, 1, 15);
+      return `${u.name} Lv${next}/15`;
+    }
+    const cur = (state.upgLv[u.id] ?? 0);
+    const next = (cur + 1);
+    const max = u.maxLv;
+    return `${u.name} Lv${next}/${max}`;
+  }
+
+  function showUpgrade(){
+  running = false;
+  upgradeOverlay.style.display = "flex";
+  choicesBox.innerHTML = "";
+
+  // リロール回数は「このレベルアップ1回分」ごとにリセット
+  const rerollLv = state.upgLv.reroll || 0;
+  if((state.rerollToken ?? -1) !== (state.pendingUpgrades || 0)){
+    state.rerollToken = (state.pendingUpgrades || 0);
+    state.rerollsLeft = rerollLv;
+  }
+
+  function render(opts){
+    choicesBox.innerHTML = "";
+
+    // リロールUI
+    if(rerollLv > 0){
+      const top = document.createElement("div");
+      top.style.display = "flex";
+      top.style.justifyContent = "space-between";
+      top.style.alignItems = "center";
+      top.style.width = "100%";
+      top.style.maxWidth = "520px";
+      top.style.margin = "0 auto 10px";
+      top.style.gap = "10px";
+
+      const info = document.createElement("div");
+      info.style.fontSize = "12px";
+      info.style.opacity = "0.85";
+      info.textContent = `リロール残り: ${state.rerollsLeft||0}`;
+
+      const btn = document.createElement("button");
+      btn.className = "smallBtn";
+      btn.textContent = "リロール";
+      btn.disabled = (state.rerollsLeft||0) <= 0;
+
+      btn.addEventListener("click", ()=>{
+        if((state.rerollsLeft||0) <= 0) return;
+        state.rerollsLeft -= 1;
+        playSE("ok");
+        const nopts = pick3Upgrades();
+        render(nopts);
+      });
+
+      top.appendChild(info);
+      top.appendChild(btn);
+      choicesBox.appendChild(top);
+    }
+
+    if(!opts || opts.length === 0){
+      // もう選べる強化が無い場合はそのまま続行
+      state.pendingUpgrades = 0;
+      upgradeOverlay.style.display = "none";
+      running = true;
+      inp.focus();
+      return;
+    }
+
+    opts.forEach(u => {
+      const div = document.createElement("div");
+      div.className = "choice";
+      const rarClass = u.rarity || "common";
+      div.innerHTML =
+        `<b>${upgradeCardTitle(u)}
+          <span class="tag">${u.tag}</span>
+          <span class="rar ${rarClass}">${rarClass.toUpperCase()}</span>
+        </b>
+        <p>${u.desc}</p>`;
+
+      div.addEventListener("click", () => {
+        applyUpgrade(u);
+        state.pendingUpgrades = Math.max(0, (state.pendingUpgrades || 0) - 1);
+        // 次のレベルアップ分に入るのでトークンをずらす
+        state.rerollToken = -1;
+
+        if((state.pendingUpgrades || 0) > 0){
+          showUpgrade();
+        } else {
+          upgradeOverlay.style.display = "none";
+          running = true;
+          inp.focus();
+        }
+      });
+      choicesBox.appendChild(div);
+    });
+  }
+
+  const opts = pick3Upgrades();
+  render(opts);
+}
+
+  // =============================
+  // Boss system
+  // =============================
+  function isBossWave(w){ return CONFIG.bossWaves.has(w); }
+
+  function bossHpForWave(w){
+    const arr = CONFIG.bossHpChoices[w] || [3];
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+
+  function updateBossUI(){
+    if(!boss) return;
+    const frac = boss.hp / boss.maxHp;
+    bossHpFill.style.width = `${Math.floor(frac*100)}%`;
+    bossHpText.textContent = `${boss.hp}/${boss.maxHp}`;
+    bossSentenceEl.textContent = boss.sentence;
+  }
+
+  function bossKnockback(){
+    if(!boss) return;
+    // ボスはノックバックさせず、短時間停止（スタン）させる
+    boss.stunMs = Math.max(boss.stunMs||0, 1000);
+  }
+
+  function setNewBossSentence(){
+    if(!boss) return;
+    const pick = pickBossSentence(boss.sentences, boss.lastSentenceIdx);
+    boss.lastSentenceIdx = pick.idx;
+    boss.sentence = pick.s.jpSentence;
+    boss.answer = normalize(pick.s.answerVerb);
+    updateBossUI();
+  }
+
+  function startBossWave(){
+    enemies.forEach(e => { try{ e.el.remove(); }catch(_){} });
+    enemies = [];
+    bullets = [];
+    lasers = [];
+    parryOrbs.forEach(o => { try{ o.el.remove(); }catch(_){} });
+    parryOrbs = [];
+
+    phase = "boss";
+    bossPanel.style.display = "block";
+    bossWaveNum.textContent = wave;
+
+    const el = document.createElement("div");
+    el.className = "bossBody";
+    el.textContent = "BOSS";
+    game.appendChild(el);
+
+    const r = rect();
+    const hp = bossHpForWave(wave);
+
+    boss = {
+      el,
+      x: r.width/2,
+      y: r.height*0.25,
+      knockVX: 0,
+      knockVY: 0,
+      hp,
+      maxHp: hp,
+      answer: "",
+      sentence: "",
+      lastSentenceIdx: -1,
+      touchCd: 0,
+      stunMs: 0,
+    };
+
+    // Boss sentences depend on current wave range
+    boss.sentences = buildBossSentencesForWave(wave);
+
+    // ★修正④：初期文をセット
+    setNewBossSentence();
+
+    showToast(`BOSS WAVE ${wave}`, "文章を見て、動詞だけ入力！", 1200);
+    playSE("boss");
+  }
+
+  function endBossWaveDefeat(){
+    if(!boss) return;
+    try{ boss.el.remove(); }catch(_){}
+    boss = null;
+    bossPanel.style.display = "none";
+
+    const xp = CONFIG.bossXpByWave[wave] ?? 20;
+    const sc = CONFIG.bossScoreByWave[wave] ?? 120;
+    state.score += sc;
+    gainXP(xp);
+    playSE("clear");
+
+    state.clearedWave = wave;
+
+    if(wave >= CONFIG.waveTotal){
+      running = false;
+      endRun(true);
+      return;
+    }
+
+    wave += 1;
+    setupWave();
+  }
+
+  function tryBossInput(input){
+    const s = normalize(input);
+    if(!s || !boss) return;
+
+    if(s !== boss.answer){
+      inp.value = "";
+      runStat.miss += 1;
+      comboReset();
+      showWrongMark();
+      playSE("bad");
+      setHUD();
+      return;
+    }
+
+    // correct
+    inp.value = "";
+    boss.hp -= 1;
+    state.score += 25;
+    comboAddCorrect();
+    playSE("hit");
+    bossKnockback();
+
+    // boss fx bullets (visual only)
+    const dummyTarget = { x: boss.x, y: boss.y, id: -999 };
+    fireSpread(dummyTarget, "bossfx");
+
+    if(boss.hp <= 0){
+      updateBossUI();
+      endBossWaveDefeat();
+      setHUD();
+      return;
+    }
+
+    // ★修正④：正解のたびに文章を変える
+    setNewBossSentence();
+
+    updateBossUI();
+    setHUD();
+  }
+
+  // =============================
+  // Wave system
+  // =============================
+  function setupWave(){
+    state.parrySpawnedThisWave = 0;
+    state.nextParrySpawn = rand(CONFIG.parrySpawnMinMs, CONFIG.parrySpawnMaxMs);
+
+    if(isBossWave(wave)){
+      startBossWave();
+      return;
+    }
+
+    phase = "normal";
+    bossPanel.style.display = "none";
+
+    state.toSpawn = CONFIG.enemiesPerWave(wave);
+    state.spawnEvery = CONFIG.spawnEveryMs(wave);
+    state.enemySpeed = CONFIG.baseEnemySpeedPerMs() * CONFIG.enemySpeedMulByWave(wave) * (state.assistEnemyMul || 1);
+
+    showToast(`WAVE ${wave}`, `敵 ${state.toSpawn} 体`, 900);
+    setHUD();
+  }
+
+  function checkWaveClear(){
+    if(phase !== "normal") return;
+    if(state.toSpawn > 0) return;
+    if(enemies.some(e => !e.dead)) return;
+
+    state.clearedWave = wave;
+
+    if(wave >= CONFIG.waveTotal){
+      running = false;
+      endRun(true);
+      return;
+    }
+
+    wave += 1;
+    setupWave();
+  }
+
+  // =============================
+  // Parry
+  // =============================
+  function tryConsumeParryOrb(){
+    if(parryOrbs.length === 0) return false;
+    const R = (state.parryRadiusEff ?? CONFIG.parryRadius);
+
+    for(const o of parryOrbs){
+      if(o.dead) continue;
+      const d = Math.hypot(o.x - player.x, o.y - player.y);
+      if(d <= R){
+        o.dead = true;
+        try{ o.el.remove(); }catch(_){}
+        return true;
+      }
+    }
+    return false;
+  }
+
+
+function tryShout(){
+  const lv = state.shoutLv || 0;
+  if(lv <= 0) return false;
+  if((state.shoutCd || 0) > 0) return false;
+  // ボス無効（boss戦ではそもそもtryParryが動かないが保険）
+  if(phase === "boss") return false;
+
+  const R = (state.parryRadiusEff ?? CONFIG.parryRadius);
+  const distByLv = [0, 30, 60, 120]; // 目安：2cm/4cm/8cm相当（px）
+  const dist = distByLv[Math.max(0, Math.min(3, lv))];
+
+  const gw = game.clientWidth || 800;
+  const gh = game.clientHeight || 600;
+
+  let pushed = 0;
+  for(const e of enemies){
+    if(!e || e.dead) continue;
+    // 念のため：ボスっぽいものは無効
+    if(e.isBoss || e.type === "boss") continue;
+
+    const dx = e.x - player.x;
+    const dy = e.y - player.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if(d > R) continue;
+
+    const nx = dx / d;
+    const ny = dy / d;
+    e.x = clamp(e.x + nx * dist, 10, gw - 10);
+    e.y = clamp(e.y + ny * dist, 10, gh - 10);
+    e.el.style.left = e.x + "px";
+    e.el.style.top  = e.y + "px";
+    pushed++;
+  }
+
+  if(pushed > 0){
+    state.shoutCd = 10000; // 10秒
+    showToast("SHOUT!", `押し返し ${pushed}体`, 650);
+    playSE("ok");
+    setHUD();
+    return true;
+  }
+  // 押せるけど当たらなかった場合はCDを付けない（無駄撃ちを避けたいならここをtrueに）
+  return false;
+}
+
+  function tryParry(){
+    if(!running) return;
+    if(phase !== "normal") return;
+    // Parry is disabled until after the first boss (wave5)
+    if((wave||1) < 6) return;
+    if(state.parryCd > 0) return;
+
+    state.parryActive = CONFIG.parryWindowMs;
+    state.parryCd = CONFIG.parryCdMs;
+
+    // SHOUT: parry button knockback (if unlocked)
+    tryShout();
+
+    const hit = tryConsumeParryOrb();
+    if(hit){
+      runStat.parrySuccess += 1;
+      state.score += 12;
+      gainXP(2);
+      state.slowBuffMs = Math.max(state.slowBuffMs, (state.parrySlowMsEff ?? CONFIG.parrySlowMs));
+      showToast("PARRY!", "スロー発動", 650);
+      playSE("parry");
+    }else{
+      playSE("hit");
+    }
+    setHUD();
+  }
+
+
+  // =============================
+  // Combo (UI only for now)
+  // =============================
+  function comboKnockMul(){
+    const tier = state.comboTier || 0;
+    const lv = state.comboKbLv || 0;
+    if(lv <= 0 || tier <= 0) return 1.0;
+    const perTier = [0, 0.08, 0.12, 0.16, 0.22, 0.30][lv]; // Lv1..5
+    return 1.0 + perTier * tier;
+  }
+
+
+  function comboBulletColor(tier){
+    // 0..5
+    switch(tier|0){
+      case 1: return "rgba(254,243,199,.95)"; // warm
+      case 2: return "rgba(253,230,138,.95)";
+      case 3: return "rgba(251,146,60,.95)";
+      case 4: return "rgba(248,113,113,.95)";
+      case 5: return "rgba(192,132,252,.95)";
+      default: return "rgba(251,191,36,.95)"; // default bullet yellow
+    }
+  }
+
+  function comboRecalcTier(){
+    // Every 5 correct => +1 tier, max 5 (0..5)
+    const t = Math.floor((state.comboCount || 0) / 5);
+    state.comboTier = Math.max(0, Math.min(5, t));
+  }
+  function comboAddCorrect(){
+    state.comboCount = (state.comboCount || 0) + 1;
+    comboRecalcTier();
+    setHUD();
+  }
+  function comboReset(){
+    state.comboCount = 0;
+    state.comboTier = 0;
+    state._comboTierPrev = 0;
+    setHUD();
+  }
+
+  // =============================
+  // Input attack
+  // =============================
+
+  function tryUseBomb(){
+    if(!running) return false;
+    if(phase !== "normal" && phase !== "boss") return false;
+
+    if((state.bombUses||0) <= 0){
+      showToast("BOMB", "残り0", 600);
+      playSE("bad");
+      return true;
+    }
+
+    state.bombUses -= 1;
+
+    // 全体1ダメージ（通常敵）
+    if(enemies && enemies.length){
+      // copy to avoid mutation issues
+      const list = enemies.slice();
+      for(const e of list){
+        if(!e || e.dead) continue;
+        hitEnemy(e, 1, false);
+      }
+    }
+
+    // ボスにも1ダメ
+    if(phase === "boss" && boss){
+      boss.hp -= 1;
+      playSE("hit");
+      bossKnockback();
+      if(boss.hp <= 0){
+        updateBossUI();
+        endBossWaveDefeat();
+      }else{
+        // 文章は変えておく（テンポ維持）
+        setNewBossSentence();
+        updateBossUI();
+      }
+    }else{
+      playSE("hit");
+    }
+
+    showToast("BOMB!", `残り ${state.bombUses}`, 700);
+    setHUD();
+    return true;
+  }
+
+
+function frozenParamsByLv(lv){
+  if(lv <= 0) return null;
+  if(lv === 1) return { uses:1, dur:5000, mul:0.35, label:"SLOW" };
+  if(lv === 2) return { uses:2, dur:6000, mul:0.35, label:"SLOW" };
+  // lv3
+  return { uses:3, dur:6000, mul:0.0, label:"STOP" };
+}
+
+function refreshFrozenUses(){
+  const lv = state.upgLv.frozen || 0;
+  const p = frozenParamsByLv(lv);
+  state.frozenUses = p ? p.uses : 0;
+}
+
+function tryUseFrozen(){
+  if(!running) return false;
+  if(phase !== "normal" && phase !== "boss") return false;
+
+  const lv = state.upgLv.frozen || 0;
+  const p = frozenParamsByLv(lv);
+  if(!p){
+    showToast("FROZEN", "未解禁", 650);
+    playSE("bad");
+    return true;
+  }
+  if((state.frozenUses||0) <= 0){
+    showToast("FROZEN", "残り0", 600);
+    playSE("bad");
+    return true;
+  }
+
+  state.frozenUses -= 1;
+  state.frozenMs = Math.max(state.frozenMs||0, p.dur);
+  state.frozenMulEff = p.mul;
+
+  showToast("FROZEN", `${p.label} ${Math.round(p.dur/1000)}s`, 700);
+  playSE("parry");
+  setHUD();
+  return true;
+}
+
+
+  function tryAttackByInput(input){
+    const s = normalize(input);
+    if(!s) return;
+
+    // ボム（BB）：全体1ダメージ
+    if(s === "bb"){
+      inp.value = "";
+      tryUseBomb();
+      return;
+    }
+    if(s === "fr"){
+      inp.value = "";
+      tryUseFrozen();
+      return;
+    }
+
+    if(phase === "boss"){
+      tryBossInput(s);
+      return;
+    }
+
+    if(phase !== "normal") return;
+
+    const idx = enemies.findIndex(e => !e.dead && normalize(e.ans) === s);
+    if(idx === -1){
+      inp.value = "";
+      runStat.miss += 1;
+      comboReset();
+      showWrongMark();
+      playSE("bad");
+      setHUD();
+      return;
+    }
+
+    const enemy = enemies[idx];
+    enemy.el.classList.add("lock");
+
+    // ★修正②：Enterで撃った弾だけが “自分の弾”
+    fireSpread(enemy, "player");
+
+    inp.value = "";
+    playSE("ok");
+    comboAddCorrect();
+  }
+
+  // =============================
+  // Loop step
+  // =============================
+  function step(ms){
+    if(!running) return;
+
+    const r = rect();
+    player.x = r.width/2;
+    player.y = r.height*0.55;
+
+    runStat.timeMs += ms;
+
+    if(state.laserCd > 0) state.laserCd = Math.max(0, state.laserCd - ms);
+    if(state.parryCd > 0) state.parryCd = Math.max(0, state.parryCd - ms);
+    if(state.shoutCd > 0) state.shoutCd = Math.max(0, state.shoutCd - ms);
+    if(state.parryActive > 0) state.parryActive = Math.max(0, state.parryActive - ms);
+    if(state.slowBuffMs > 0) state.slowBuffMs = Math.max(0, state.slowBuffMs - ms);
+    if(state.frozenMs > 0) state.frozenMs = Math.max(0, state.frozenMs - ms);
+    if(state.invuln > 0) state.invuln = Math.max(0, state.invuln - ms);
+
+    // spawn logic
+    if(phase === "normal"){
+      lastSpawn += ms;
+      while(lastSpawn >= state.spawnEvery){
+        lastSpawn -= state.spawnEvery;
+        spawnEnemy();
+      }
+      state.nextParrySpawn -= ms;
+      if(state.nextParrySpawn <= 0){
+        spawnParryOrb();
+        state.nextParrySpawn = rand(CONFIG.parrySpawnMinMs, CONFIG.parrySpawnMaxMs);
+      }
+    }
+
+    // turret auto fire
+    if(phase === "normal" && state.turret > 0){
+      lastTurret += ms;
+      if(lastTurret >= CONFIG.turretIntervalMs){
+        lastTurret = 0;
+        for(let i=0;i<state.turret;i++){
+          const e = nearestEnemy(player.x, player.y);
+          if(e) fireBulletAt(e, (i===0?0.05:-0.05), "turret"); // ★修正②：turret弾は別src
+        }
+      }
+    }
+
+    // slow multiplier
+    let slowMul = state.slowMul;
+    if(state.slowBuffMs > 0) slowMul *= (state.parrySlowMulEff ?? CONFIG.parrySlowMul);
+    if(state.frozenMs > 0) slowMul *= (state.frozenMulEff ?? 0.35);
+
+    // enemies movement
+    if(phase === "normal"){
+      const sp = state.enemySpeed * slowMul;
+      for(const e of enemies){
+        if(e.dead) continue;
+
+        if(e.type === "tele"){
+          e.teleAcc += ms;
+          if(e.teleAcc >= e.teleCd){
+            e.teleAcc = 0;
+            e.teleCd = rand(900, 1500);
+            const ang = rand(0, Math.PI*2);
+            const rad = rand(140, 240);
+            e.x = player.x + Math.cos(ang)*rad;
+            e.y = player.y + Math.sin(ang)*rad;
+          }
+        }
+
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
+        const d  = Math.hypot(dx,dy) || 1;
+
+        const m = sp * (e.speedMul || 1);
+        e.x += (dx/d) * m * ms;
+        e.y += (dy/d) * m * ms;
+
+        e.el.style.left = e.x+"px";
+        e.el.style.top  = e.y+"px";
+
+        if(d < CONFIG.playerHitRadius){
+          e.dead = true;
+          try{ e.el.remove(); }catch(_){}
+          damage();
+        }
+      }
+    }
+
+    // ★修正③：boss approaches player + contact damage
+    if(phase === "boss" && boss){
+      if(boss.touchCd > 0) boss.touchCd = Math.max(0, boss.touchCd - ms);
+
+      // knockback decay
+      boss.knockVX *= 0.90;
+      boss.knockVY *= 0.90;
+
+      // stun (stop briefly when hit)
+      boss.stunMs = Math.max(0, (boss.stunMs||0) - ms);
+      if(boss.stunMs > 0){
+        // 停止中は移動しない（ノックバック移動も含む）
+      } else {
+
+      // approach move
+      const baseSp = CONFIG.bossBaseSpeedPerMs * CONFIG.bossApproachMulByWave(wave);
+      const dx = player.x - boss.x;
+      const dy = player.y - boss.y;
+      const d  = Math.hypot(dx,dy) || 1;
+
+      // gentle approach + knockback
+      boss.x += (dx/d) * baseSp * ms + boss.knockVX * ms;
+      boss.y += (dy/d) * baseSp * ms + boss.knockVY * ms;
+
+      // clamp
+      boss.x = clamp(boss.x, 80, r.width-80);
+      boss.y = clamp(boss.y, 70, r.height*0.70); // playerの下に潜りにくく
+
+      }
+
+      boss.el.style.left = (boss.x-40) + "px";
+      boss.el.style.top  = (boss.y-24) + "px";
+
+      // contact damage with cooldown
+      const dx = boss.x - player.x;
+      const dy = boss.y - player.y;
+      const d  = Math.hypot(dx, dy) || 1;
+      if(d <= CONFIG.bossTouchRadius && boss.touchCd <= 0){
+        boss.touchCd = CONFIG.bossHitCooldownMs;
+        damage();
+        // small recoil so it doesn't stick forever
+        boss.knockVX += (-(dx/d)) * 0.9;
+        boss.knockVY += (-(dy/d)) * 0.9;
+      }
+    }
+
+    // bullets
+    for(const b of bullets){
+      if(!b.alive) continue;
+
+      // lifetime (range)
+      if(typeof b.ttlMs === "number"){
+        b.ttlMs -= ms;
+        if(b.ttlMs <= 0){ b.alive = false; continue; }
+      }
+
+      // ★修正①②：ホーミングは player弾のみ＆Lv段階
+      if(b.homingLv > 0 && b.src === "player" && phase === "normal"){
+        const target = nearestEnemy(b.x, b.y);
+        if(target){
+          const dx = target.x - b.x;
+          const dy = target.y - b.y;
+          const d = Math.hypot(dx,dy) || 1;
+
+          const desiredVx = (dx/d) * state.bulletSpeed;
+          const desiredVy = (dy/d) * state.bulletSpeed;
+
+          const a = homingAlphaByLv(b.homingLv);
+          b.vx = b.vx*(1-a) + desiredVx*a;
+          b.vy = b.vy*(1-a) + desiredVy*a;
+
+          // normalize speed to avoid slow drift at high blend
+          const sp = Math.hypot(b.vx, b.vy) || 1;
+          const k = state.bulletSpeed / sp;
+          b.vx *= k;
+          b.vy *= k;
+        }
+      }
+
+      b.x += b.vx * ms;
+      b.y += b.vy * ms;
+
+      if(b.x < -60 || b.y < -60 || b.x > r.width+60 || b.y > r.height+60){
+        b.alive = false;
+        continue;
+      }
+
+      // hits
+      if(phase === "normal"){
+        for(const e of enemies){
+          if(e.dead) continue;
+          const d = Math.hypot(e.x - b.x, e.y - b.y);
+          const hitR = CONFIG.bulletHitRadius * ((b.src === "player") ? (state.bulletSizeMul || 1.0) : 1.0);
+          if(d < hitR){
+            hitEnemy(e, 1, false);
+
+            // Combo Knockback（スキル取得時のみ）
+            if(b.src === "player" && (state.comboKbLv||0) > 0){
+              const mul = comboKnockMul();
+              if(mul > 1.0001){
+                const dxk = e.x - player.x;
+                const dyk = e.y - player.y;
+                const dk  = Math.hypot(dxk, dyk) || 1;
+                const baseKb = 14; // px per hit (tweakable)
+                const kb = baseKb * mul;
+                e.x += (dxk/dk) * kb;
+                e.y += (dyk/dk) * kb;
+                e.el.style.left = e.x+"px";
+                e.el.style.top  = e.y+"px";
+              }
+            }
+
+
+            // ★修正②：pierceは player弾だけ
+            if(b.src === "player" && b.pierceLeft > 0){
+              b.pierceLeft -= 1;
+            }else{
+              b.alive = false;
+            }
+            break;
+          }
+        }
+      }else{
+        // boss phase: bullets are visual only (no damage)
+      }
+    }
+    if(bullets.length > 450) bullets = bullets.slice(-450);
+      bullets = bullets.filter(b => b.alive);
+
+    // orbs (normal only) - they do NOT hurt boss
+    if(phase === "normal" && state.orbs > 0 && enemies.length){
+      state._theta = (state._theta || 0) + state.orbSpeed * ms;
+
+      // cooldown decay
+      for(let i=0;i<state.orbCD.length;i++){
+        if(state.orbCD[i] > 0) state.orbCD[i] = Math.max(0, state.orbCD[i] - ms);
+      }
+
+      for(let i=0;i<state.orbs;i++){
+        // if durability missing (safety), fill it
+        if(state.orbHP[i] == null) state.orbHP[i] = state.orbDurBase || 2;
+        if(state.orbCD[i] == null) state.orbCD[i] = 0;
+
+        const ang = state._theta + (i * (Math.PI*2/state.orbs));
+        const ox = player.x + Math.cos(ang) * state.orbRadius;
+        const oy = player.y + Math.sin(ang) * state.orbRadius;
+
+        // hit only if cooldown ready
+        if(state.orbCD[i] > 0) continue;
+
+        for(const e of enemies){
+          if(e.dead) continue;
+          const d = Math.hypot(e.x - ox, e.y - oy);
+          if(d < CONFIG.orbHitRadius){
+            hitEnemy(e, 1, false);
+
+            // consume durability (2 hits base, +1 per orb skill level)
+            state.orbHP[i] -= 1;
+            state.orbCD[i] = CONFIG.orbHitCooldownMs;
+
+            // Combo Knockback（スキル取得時のみ）
+            // ※オーブはプレイヤー由来なので b.src 判定は不要
+            if((state.comboKbLv||0) > 0){
+              const mul = comboKnockMul();
+              if(mul > 1.0001){
+                const dxk = e.x - player.x;
+                const dyk = e.y - player.y;
+                const dk  = Math.hypot(dxk, dyk) || 1;
+                const baseKb = 14; // px per hit (tweakable)
+                const kb = baseKb * mul;
+                e.x += (dxk/dk) * kb;
+                e.y += (dyk/dk) * kb;
+                e.el.style.left = e.x+"px";
+                e.el.style.top  = e.y+"px";
+              }
+            }
+
+            // if this orb broke, remove it (until you level up orbs again)
+            if(state.orbHP[i] <= 0){
+              state.orbHP.splice(i,1);
+              state.orbCD.splice(i,1);
+              state.orbs = state.orbHP.length;
+              i -= 1; // keep index consistent
+            }
+
+            break; // one hit per orb per tick
+          }
+        }
+      }
+    }
+
+    // parry orbs move// parry orbs move + collide
+    if(phase === "normal"){
+      for(const o of parryOrbs){
+        if(o.dead) continue;
+        o.x += o.vx * ms;
+        o.y += o.vy * ms;
+        o.el.style.left = (o.x-9)+"px";
+        o.el.style.top  = (o.y-9)+"px";
+
+        const d = Math.hypot(o.x - player.x, o.y - player.y);
+        if(d < 26){
+          o.dead = true;
+          try{ o.el.remove(); }catch(_){}
+          damage();
+        }
+      }
+      parryOrbs = parryOrbs.filter(o => !o.dead);
+    }
+
+    lasers.forEach(L => L.life -= ms);
+    lasers = lasers.filter(L => L.life > 0);
+
+    enemies = enemies.filter(e => !e.dead);
+
+    checkWaveClear();
+
+    setHUD();
+
+    if(phase === "boss"){
+      msg.textContent = `BOSS：動詞だけ入力 / 正解でノックバック / 近づいてくるので注意`;
+    }else if(phase === "normal"){
+      const slowTxt = (state.slowBuffMs > 0) ? "（スロー中）" : "";
+      msg.textContent = `Enterで攻撃 / Shiftでパリィ / Space=レーザー（取得後）/ 敵:${enemies.length} 残り出現:${state.toSpawn} ${slowTxt}`;
+    }else{
+      msg.textContent = "スタートを押して開始";
+    }
+  }
+
+  // =============================
+  // Render (canvas effects)
+  // =============================
+  function render(){
+    const r = rect();
+    ctx.clearRect(0,0,r.width,r.height);
+
+    // bullets
+    ctx.save();
+    for(const b of bullets){
+      ctx.fillStyle = b.color || "rgba(251,191,36,.95)";
+      ctx.beginPath();
+      const br = 4.2 * ((b.src === "player") ? (state.bulletSizeMul || 1.0) : 1.0);
+      ctx.arc(b.x, b.y, br, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // orbs
+    if(state.orbs > 0){
+      const theta = state._theta || 0;
+      ctx.save();
+      ctx.fillStyle = "rgba(96,165,250,.85)";
+      ctx.shadowColor = "rgba(96,165,250,.6)";
+      ctx.shadowBlur = 12;
+      for(let i=0;i<state.orbs;i++){
+        const ang = theta + (i * (Math.PI*2/state.orbs));
+        const ox = player.x + Math.cos(ang) * state.orbRadius;
+        const oy = player.y + Math.sin(ang) * state.orbRadius;
+        ctx.beginPath();
+        ctx.arc(ox, oy, 6.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // lasers
+    if(lasers.length){
+      ctx.save();
+      ctx.lineWidth = laserRadius() * 1.1;
+      ctx.strokeStyle = "rgba(34,197,94,.85)";
+      ctx.shadowColor = "rgba(34,197,94,.6)";
+      ctx.shadowBlur = 18;
+      for(const L of lasers){
+        const len = Math.max(r.width, r.height) * 1.2;
+        const x2 = player.x + Math.cos(L.ang) * len;
+        const y2 = player.y + Math.sin(L.ang) * len;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // parry ring
+    if(state.parryActive > 0){
+      ctx.save();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(251,191,36,.9)";
+      ctx.shadowColor = "rgba(251,191,36,.65)";
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, (state.parryRadiusEff ?? CONFIG.parryRadius), 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  function loop(ts){
+    if(!tPrev) tPrev = ts;
+    let ms = ts - tPrev;
+    // prevent huge jumps when tab was inactive
+    ms = Math.min(ms, 60);
+    tPrev = ts;
+    if(running){
+      try{
+        step(ms);
+      }catch(e){
+        running = false;
+        try{
+          const msg = `[${new Date().toISOString()}]
+${(e && (e.stack||e.message)) ? (e.stack||e.message) : e}`;
+          sessionStorage.setItem(ERR_KEY, msg);
+          showCrash(msg);
+        }catch(_){ }
+        console.error(e);
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // =============================
+  // Run control
+  // =============================
+  function resetAll(chosenMode){
+    meta = loadMeta();
+    mode = chosenMode;
+    // Assist: slow mode (enemy speed & earned points)
+    const a = loadAssist();
+    if(chosenMode !== "dev" && a.on){
+      state.assistEnemyMul = a.mul;
+      state.pointMul = a.mul;
+    }else{
+      state.assistEnemyMul = 1;
+      state.pointMul = 1;
+    }
+
+    wave = 1;
+    phase = "normal";
+
+    enemies.forEach(e => { try{ e.el.remove(); }catch(_){} });
+    enemies = [];
+    bullets = [];
+    lasers = [];
+    parryOrbs.forEach(o => { try{ o.el.remove(); }catch(_){} });
+    parryOrbs = [];
+
+    if(boss && boss.el){ try{ boss.el.remove(); }catch(_){} }
+    boss = null;
+    bossPanel.style.display = "none";
+
+    state.maxHp = 5 + clamp(meta.hpPlus || 0, 0, 5);
+    state.hp = state.maxHp;
+    state.resUsed = false;
+    state.lv = 1;
+    state.xp = 0;
+    state.need = 6;
+    state.killPts10 = 0; // 0.1pt units earned by defeating enemies
+    state.bombMax = clamp(meta.bombMax || 0, 0, 3);
+    state.bombUses = state.bombMax;
+    state.pendingUpgrades = 0;
+    state.score = 0;
+
+    state.upgLv = {shots:0, speed:0, homing:0, pierce:0, explode:0, orbs:0, turret:0, laser:0, slow:0, luck:0, parry:0, shout:0, reroll:0, frozen:0 };
+    state.orbHP = [];
+    state.orbCD = [];
+    recalcFromUpgrades();
+
+    state.laserCd = 0;
+    state.parryCd = 0;
+    state.shoutCd = 0;
+    state.parryActive = 0;
+    state.slowBuffMs = 0;
+
+    lastSpawn = 0;
+    lastTurret = 0;
+
+    runStat.startAt = Date.now();
+    runStat.timeMs = 0;
+    runStat.miss = 0;
+    runStat.parrySuccess = 0;
+    runStat.cleared = false;
+    state.clearedWave = 0;
+
+    resizeFX();
+    setHUD();
+
+    inp.placeholder = (mode === "dev")
+      ? "DEV: buttons / click to fire"
+      : (mode === "easy")
+        ? "type the English (past) you see, then Enter"
+        : "type the English (past) for the Japanese, then Enter";
+
+    setupWave();
+  }
+
+  function startGame(which){
+    // 二重起動防止（連打・多重イベント対策）
+    if(startLock) return;
+    startLock = true;
+
+    try{
+      // Stamina check
+      mode = which; // set early for spendStaminaForRun
+      updateStaminaUI();
+      if(which !== "dev"){
+        const r = regenStamina();
+        if(r.cur <= 0){
+          playSE("bad");
+          showToast("スタミナ不足", "30分で1回復します", 900);
+          titleOverlay.style.display = "flex";
+          return;
+        }
+      }
+
+      ensureAudio();
+      try{ if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }catch(_){ }
+      applyAudioGains();
+      bgmUserUnlocked = true;
+      startBGM();
+      if(audioCtx && audioCtx.state === "suspended"){
+        audioCtx.resume().catch(()=>{});
+      }
+
+      titleOverlay.style.display = "none";
+      resultOverlay.style.display = "none";
+      rankOverlay.style.display = "none";
+      shopOverlay.style.display = "none";
+
+      resetAll(which);
+      // consume stamina after reset succeeded (easy/hard only)
+      if(which !== "dev"){
+        if(!spendStaminaForRun()){
+          running = false;
+          showToast("スタミナ不足", "30分で1回復します", 900);
+          showTitle();
+          return;
+        }
+      }
+      setupDevPanel();
+      running = true;
+      setHUD();
+      inp.focus();
+    }finally{
+      // 短い遅延を入れて連打耐性を確保
+      setTimeout(()=>{ startLock = false; }, 200);
+    }
+  }
+
+
+function endRun(cleared){
+    running = false;
+    phase = "result";
+
+    if(cleared && mode === "easy" && !isHardUnlocked()){
+      setHardUnlocked();
+    }
+
+    // Points (meta)
+    let earnedPts = 0;
+    let totalPts = meta.points || 0;
+    if(mode !== "dev"){
+      const clearedWave = cleared ? CONFIG.waveTotal : (state.clearedWave || 0);
+      earnedPts = calcEarnedPoints(clearedWave) + (((state.killPts10 || 0) / 10));
+      // Apply assist point multiplier (slow mode)
+      earnedPts = Math.round((earnedPts * (state.pointMul || 1)) * 10) / 10;
+      meta = loadMeta();
+      meta.points = Math.round(((meta.points || 0) + earnedPts) * 10) / 10;
+      saveMeta(meta);
+      totalPts = meta.points;
+    }
+
+    const entry = {
+      score: state.score,
+      mode,
+      wave,
+      cleared: !!cleared,
+      timeMs: runStat.timeMs,
+      miss: runStat.miss,
+      parry: runStat.parrySuccess,
+      at: new Date().toISOString()
+    };
+    if(mode !== "dev") addRankEntry(entry);
+
+    // pass to result UI
+    state.earnedPts = earnedPts;
+    state.totalPts = totalPts;
+
+    showResult(cleared);
+  }
+
+  function showResult(cleared){
+    stopBGM();
+    resultTitle.textContent = cleared ? "CLEAR!" : "GAME OVER";
+    rMode.textContent = mode;
+    rScore.textContent = state.score;
+    rWave.textContent = wave;
+    rTime.textContent = Math.floor(runStat.timeMs/1000);
+    rMiss.textContent = runStat.miss;
+    rParry.textContent = runStat.parrySuccess;
+    rPtsEarned.textContent = state.earnedPts || 0;
+    rPtsTotal.textContent = state.totalPts || (loadMeta().points||0);
+
+    resultOverlay.style.display = "flex";
+    bossPanel.style.display = "none";
+    upgradeOverlay.style.display = "none";
+
+    inp.value = "";
+    inp.blur();
+
+    enemies.forEach(e => { try{ e.el.remove(); }catch(_){} });
+    enemies = [];
+    parryOrbs.forEach(o => { try{ o.el.remove(); }catch(_){} });
+    parryOrbs = [];
+    bullets = [];
+    lasers = [];
+    if(boss && boss.el){ try{ boss.el.remove(); }catch(_){} }
+    boss = null;
+
+    playSE(cleared ? "clear" : "bad");
+  }
+
+  // =============================
+  // Ranking UI
+  // =============================
+  function openRanking(){
+    rankOverlay.style.display = "flex";
+    titleOverlay.style.display = "none";
+    resultOverlay.style.display = "none";
+    shopOverlay.style.display = "none";
+    renderRanking();
+  }
+
+  function renderRanking(){
+    const arr = loadRank();
+    rankList.innerHTML = "";
+    if(arr.length === 0){
+      const div = document.createElement("div");
+      div.className = "listItem";
+      div.innerHTML = `<div class="left"><b>データなし</b><div class="small">プレイすると記録されます</div></div><div></div>`;
+      rankList.appendChild(div);
+      return;
+    }
+
+    arr.slice(0,10).forEach((e, i) => {
+      const div = document.createElement("div");
+      div.className = "listItem";
+
+      const dt = (() => {
+        try{
+          const d = new Date(e.at);
+          const y = d.getFullYear();
+          const m = String(d.getMonth()+1).padStart(2,"0");
+          const da = String(d.getDate()).padStart(2,"0");
+          return `${y}-${m}-${da}`;
+        }catch(_){ return ""; }
+      })();
+
+      const status = e.cleared ? "CLEAR" : "LOSE";
+      const t = Math.floor((e.timeMs||0)/1000);
+      div.innerHTML = `
+        <div class="left">
+          <b>#${i+1}　${e.score} pts <span style="opacity:.8">(${status})</span></b>
+          <div class="small">${dt} / ${e.mode} / Wave ${e.wave} / ${t}s / miss ${e.miss} / parry ${e.parry}</div>
+        </div>
+        <div style="font-weight:900; opacity:.9;">${String(e.mode||"").toUpperCase()}</div>
+      `;
+      rankList.appendChild(div);
+    });
+  }
+
+
+// =============================
+// DEV Panel (shown only in dev mode)
+// =============================
+let devPanelEl = null;
+
+function setupDevPanel(){
+  // remove old
+  if(devPanelEl){
+    try{ devPanelEl.remove(); }catch(_){}
+    devPanelEl = null;
+  }
+  if(mode !== "dev") return;
+    if(phase === "title") return;
+
+  const el = document.createElement("div");
+  el.style.position = "absolute";
+  el.style.right = "10px";
+  el.style.top = "10px";
+  el.style.zIndex = "120";
+  el.style.background = "rgba(0,0,0,.55)";
+  el.style.border = "1px solid #333";
+  el.style.borderRadius = "12px";
+  el.style.padding = "10px";
+  el.style.display = "flex";
+  el.style.flexDirection = "column";
+  el.style.gap = "8px";
+  el.style.fontSize = "12px";
+
+  el.innerHTML = `
+    <div style="font-weight:900;">DEV TOOLS</div>
+    <button id="devXp" class="bigBtn" style="min-width:auto;padding:8px 10px;">+XP（即LvUp）</button>
+    <button id="devUpg" class="bigBtn" style="min-width:auto;padding:8px 10px;">強化3択を開く</button>
+    <button id="devSpawn" class="bigBtn" style="min-width:auto;padding:8px 10px;">敵を1体出す</button>
+    <button id="devKill" class="bigBtn" style="min-width:auto;padding:8px 10px;">敵を全滅</button>
+    <button id="devOff" class="bigBtn" style="min-width:auto;padding:8px 10px;">DEV OFF（タイトルへ）</button>
+  `;
+  game.appendChild(el);
+  devPanelEl = el;
+
+  el.querySelector("#devXp").addEventListener("click", ()=> {
+    // 1クリックで必ずLvUpするだけXPを足す
+    gainXP(Math.max(1, state.need));
+  });
+  el.querySelector("#devUpg").addEventListener("click", ()=> {
+    showUpgrade();
+  });
+  el.querySelector("#devSpawn").addEventListener("click", ()=> {
+    if(phase === "normal"){
+      // waveやtoSpawnの整合が崩れないように最小限
+      state.toSpawn = Math.max(state.toSpawn || 0, 1);
+      spawnEnemy();
+      setHUD();
+    }
+  });
+  el.querySelector("#devKill").addEventListener("click", ()=> {
+    enemies.forEach(e => { e.dead = true; try{ e.el.remove(); }catch(_){} });
+    enemies = [];
+    checkWaveClear();
+  });
+  el.querySelector("#devOff").addEventListener("click", ()=> {
+    disableDevMode();
+    showTitle();
+  });
+}
+
+
+  // =============================
+  // Controls
+  // =============================
+// DEV toggle: Title画面で Ctrl+Shift+D → パスコード（セッション限定）
+document.addEventListener("keydown", (e) => {
+  if(phase !== "title") return;
+  const key = (e.key || "").toLowerCase();
+  if(e.ctrlKey && e.shiftKey && key === "d"){
+    e.preventDefault();
+    const ans = prompt("DEVパスコード");
+    if(ans === DEV_PASS){
+      enableDevMode();
+    }else{
+      showToast("×", "パスコードが違います", 700);
+    }
+  }
+  if(e.ctrlKey && e.shiftKey && key === "e"){
+    e.preventDefault();
+    const last = sessionStorage.getItem(ERR_KEY);
+    if(last) showCrash(last);
+    else showToast("OK", "直近のエラーはありません", 800);
+  }
+
+if(e.ctrlKey && e.shiftKey && key === "p"){
+  // テスト用：ポイント付与（パスコード必須）
+  e.preventDefault();
+  const ans = prompt("テスト用パスコード");
+  if(ans !== DEV_PASS){
+    showToast("×", "パスコードが違います", 800);
+    return;
+  }
+  // 連続promptがブロックされる環境があるため、次のpromptは別タスクで開く
+  setTimeout(() => {
+    try{
+      const amtStr = prompt("追加するポイント（数値）", "1000");
+      const amt = Math.max(0, Math.floor(Number(amtStr || "0")));
+      if(!amt) return;
+      const m = loadMeta();
+      m.points = Math.round(((m.points || 0) + amt) * 10) / 10;
+      saveMeta(m);
+      showToast("+PTS", `${amt} 追加`, 900);
+    }catch(err){
+      showCrash("PointAddError: " + (err && err.message ? err.message : err));
+    }
+  }, 0);
+}
+
+
+if(e.ctrlKey && e.shiftKey && key === "s"){
+  // テスト用：スタミナ全回復（パスコード必須）
+  e.preventDefault();
+  const ans = prompt("テスト用パスコード");
+  if(ans !== DEV_PASS){
+    showToast("×", "パスコードが違います", 800);
+    return;
+  }
+  setTimeout(() => {
+    try{
+      meta = loadMeta();
+      const cap = staminaCap();
+      const s = loadStaminaState();
+      s.cur = cap;
+      s.last = Date.now();
+      saveStaminaState(s);
+      updateStaminaUI();
+      showToast("+STA", `スタミナ回復 ${cap}/${cap}`, 900);
+    }catch(err){
+      showCrash("StaminaRefillError: " + (err && err.message ? err.message : err));
+    }
+  }, 0);
+}
+
+
+});
+
+
+// Escape in shop/result/rank -> title (safety)
+document.addEventListener("keydown", (e) => {
+  if(e.key !== "Escape") return;
+  if(phase === "shop" || phase === "ranking" || phase === "result"){
+    e.preventDefault();
+    showTitle();
+  }
+});
+
+
+
+// DEV fire: クリックで最寄りの敵へ発射（通常プレイには影響しない）
+game.addEventListener("click", () => {
+  if(!running) return;
+  if(mode !== "dev") return;
+  if(phase !== "normal") return;
+  const t = nearestEnemy(player.x, player.y);
+  if(t){
+    fireSpread(t, "player");
+    playSE("ok");
+  }
+});
+
+  inp.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      tryAttackByInput(inp.value);
+      return;
+    }
+    if(e.key === " " || e.code === "Space"){
+      if(state.laserLv > 0){
+        e.preventDefault();
+        fireLaser();
+      }
+      return;
+    }
+    if(e.key === "Shift"){
+      e.preventDefault();
+      tryParry();
+      return;
+    }
+    if(e.key === "Escape"){
+      showTitle();
+      return;
+    }
+  });
+  btnRanking.addEventListener("click", () => openRanking());
+  btnShop.addEventListener("click", () => openShop());
+
+  btnBackTitle.addEventListener("click", () => showTitle());
+  btnResultRanking.addEventListener("click", () => openRanking());
+
+  btnRankBack.addEventListener("click", () => showTitle());
+
+  btnShopBack.addEventListener("click", () => showTitle());
+  btnShopReset.addEventListener("click", () => resetShopAll());
+  btnRankClear.addEventListener("click", () => {
+    if(confirm("ランキングを初期化します。よろしいですか？")){
+      localStorage.removeItem(RANK_KEY);
+      renderRanking();
+    }
+  });
+
+  // =============================
+  // INIT
+  // =============================
+  resizeFX();
+  recalcFromUpgrades();
+  refreshTitleUI();
+  setHUD();
+  showTitle();
+  updateStaminaUI();
+  startStaminaTicker();
+
+  requestAnimationFrame(loop);
+  requestAnimationFrame(render);
+
+})();
+</script>
+</body>
+</html>
